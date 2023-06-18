@@ -7,7 +7,7 @@ OBJDIR = obj
 OBJFILES = rt.o
 OBJ = $(patsubst %,$(OBJDIR)/%,$(OBJFILES))
 
-DEPS = lalg.h geom.h in.h
+DEPS = lalg.h geom.h in.h buffer.h
 
 $(OBJDIR)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

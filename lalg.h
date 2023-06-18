@@ -43,8 +43,8 @@ Mat mat_id(void) {
     return init;
 }
 
-void mat_free(Mat m) {
-    free(m.vs);
+void mat_free(Mat* m) {
+    free(m->vs);
 }
 
 void mat_print(Mat* m) {

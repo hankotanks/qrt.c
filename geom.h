@@ -40,6 +40,14 @@ void sphere_print(Sphere* s) {
 }
 
 //
+// `Light` declaration
+
+typedef struct Light {
+    Vec pos;
+    double strength;
+} Light;
+
+//
 // `Vertex` declaration
 
 typedef struct Vertex {
@@ -77,6 +85,16 @@ typedef struct Tri {
     Vec centroid;
 } Tri;
 
+Tri tri_vvv(Vertex* a, Vertex* b, Vertex* c) {
+    Vec centroid = (Vec) {
+        .x = (a->point.x + b->point.x, c->point.x) / 3.0,
+        .y = (a->point.y + b->point.y, c->point.y) / 3.0,
+        .z = (a->point.z + b->point.z, c->point.z) / 3.0
+    };
+
+    return (Tri) { a, b, c, centroid };
+}
+
 void tri_print(Tri* t) {
     printf("tri {\n");
 
@@ -100,9 +118,9 @@ typedef struct Mesh {
     size_t tc;
 } Mesh;
 
-void mesh_free(Mesh m) {
-    free(m.vertices);
-    free(m.tris);
+void mesh_free(Mesh* m) {
+    free(m->vertices);
+    free(m->tris);
 }
 
 void mesh_print(Mesh* m) {
