@@ -91,7 +91,7 @@ Vec mul_vm(Vec v, Mat m, VecType vt) {
 Mat mul_mm(Mat m, Mat n) {
     Mat res = (Mat) { calloc(16, sizeof *(res.vs)) };
 
-    size_t x, y, i, k, l;
+    size_t x, y, i, k;
     for(x = 0; x < 4; x++) 
         for(y = 0; y < 4; y++) {
             i = x + y * 4;

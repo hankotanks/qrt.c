@@ -1,6 +1,6 @@
 CC = gcc
 LIBS = -lm
-CFLAGS = -fopenmp
+CFLAGS = -fopenmp -Wall -Wextra
 
 OBJDIR = obj
 

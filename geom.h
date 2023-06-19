@@ -58,7 +58,7 @@ typedef struct Vertex {
 void vertex_print_internal(Vertex* v, char* name, size_t indent) {
     char* sp = "                                ";
     
-    size_t id = 4 * indent;
+    int id = 4 * (int) indent;
 
     printf(
         "%.*s%s {\n"
@@ -87,9 +87,9 @@ typedef struct Tri {
 
 Tri tri_vvv(Vertex* a, Vertex* b, Vertex* c) {
     Vec centroid = (Vec) {
-        .x = (a->point.x + b->point.x, c->point.x) / 3.0,
-        .y = (a->point.y + b->point.y, c->point.y) / 3.0,
-        .z = (a->point.z + b->point.z, c->point.z) / 3.0
+        .x = (a->point.x + b->point.x + c->point.x) / 3.0,
+        .y = (a->point.y + b->point.y + c->point.y) / 3.0,
+        .z = (a->point.z + b->point.z + c->point.z) / 3.0
     };
 
     return (Tri) { a, b, c, centroid };
@@ -124,7 +124,11 @@ void mesh_free(Mesh* m) {
 }
 
 void mesh_print(Mesh* m) {
-    printf("mesh {\n    tc: %zu\n    vc: %zu\n}\n", m->tc, m->vc);
+    printf(
+        "mesh {\n    tc: %u\n    vc: %u\n}\n", 
+        (unsigned) m->tc, 
+        (unsigned) m->vc
+    );
 }
 
 

@@ -9,11 +9,18 @@
 
 Mesh mesh_from_raw_vvv(char* file); // TODO
 
+void size_t_read(FILE* f, size_t* val) {
+    unsigned int i;
+    fscanf(f, "%u\n", &i);
+
+    *val = (size_t) i;
+}
+
 Mesh mesh_from_raw_vvvnnn(char* file) {
     FILE* f = fopen(file, "r");
 
     size_t tc, i;
-    fscanf(f, "%zu\n", &tc);
+    size_t_read(f, &tc);
 
     Mesh m = (Mesh) {
         .vertices = calloc(3 * tc, sizeof *(m.vertices)),

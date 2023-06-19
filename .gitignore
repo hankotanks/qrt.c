@@ -1,2 +1,9 @@
+# Executable formats
 *.exe
+*.out
+
+# Object files
 *.o
+
+# Images
+*.ppm

@@ -30,9 +30,10 @@ void buffer_free(Buffer* b) {
 void buffer_print(Buffer* b) {
     printf(
         "buffer {\n"
-        "    width: %zu\n"
-        "    height: %zu\n}\n",
-        b->w, b->h
+        "    width: %u\n"
+        "    height: %u\n}\n",
+        (unsigned) b->w, 
+        (unsigned) b->h
     );
 }
 
@@ -90,7 +91,7 @@ void buffer_export_as_ppm(Buffer b, char* file) {
 
     
     FILE* f;
-    if(f = fopen(file, "wb+")) {
+    if((f = fopen(file, "wb+"))) {
         fwrite(s, 1, s_len, f);
         fwrite(b.vs, 1, 3 * b.w * b.h, f);
     }
