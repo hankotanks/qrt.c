@@ -51,6 +51,10 @@ typedef struct Exclusion {
     };
 } Exclusion;
 
+void exclusion_print(Exclusion* e) {
+
+}
+
 //
 // `Intersection` declaration
 
@@ -64,17 +68,20 @@ typedef struct Intersection {
 } Intersection;
 
 void intersection_print(Intersection* i) {
+    if(i->s == NONE)
+        printf("intersection { NONE }\n");
+    else
+        printf("intersection {\n");
+
     switch(i->s) {
-        case SPHERE: {
-            sphere_print(i->sphere);
+        case SPHERE:
+            sphere_print_internal(i->sphere, NULL, 1);
             break;
-        }
-        case TRI: {
-            tri_print(i->tri);
+        case TRI:
+            tri_print_internal(i->tri, NULL, 1);
             break;
-        }
-        default: printf("no intersection...");
-    };
+        default: return;
+    }; printf("}\n");
 }
 
 //

@@ -15,14 +15,22 @@ typedef struct Ray {
     Vec dir;
 } Ray;
 
+void ray_print_internal(Ray* r, char* name, size_t indent) {
+    int id = 4 * (int) indent; 
+
+    if(name) 
+        printf("%.*s%s (ray) {\n", id, SP, name);
+    else
+        printf("%.*s ray {\n", id, SP);
+
+    vec_print_internal(&(r->origin), "origin", indent + 1);
+    vec_print_internal(&(r->dir), "dir", indent + 1);
+
+    printf("%.*s}\n", id, SP);
+}
+
 void ray_print(Ray* r) {
-    printf(
-        "ray {\n"
-        "    origin { %.4lf, %.4lf, %.4lf }\n"
-        "    dir { %.4lf, %.4lf, %.4lf }\n}\n",
-        r->origin.x, r->origin.y, r->origin.z,
-        r->dir.x, r->dir.y, r->dir.z
-    );
+    ray_print_internal(r, NULL, 0);
 }
 
 //
@@ -33,14 +41,25 @@ typedef struct Sphere {
     double radius;
 } Sphere;
 
-void sphere_print(Sphere* s) {
+void sphere_print_internal(Sphere* s, char* name, size_t indent) {
+    int id = 4 * (int) indent; 
+
+    if(name)
+        printf("%.*s%s (sphere) {\n", id, SP, name);
+    else 
+        printf("%.*s sphere {\n", id, SP);
+
+    vec_print_internal(&(s->center), "center", indent + 1);
+
     printf(
-        "sphere {\n"
-        "    center { %.4lf, %.4lf, %.4lf }\n"
-        "    radius: %.4lf\n}\n",
-        s->center.x, s->center.y, s->center.z,
-        s->radius
+        "%.*s    radius: %.4lf\n%.*s}\n", 
+        id, SP, s->radius, 
+        id, SP
     );
+}
+
+void sphere_print(Sphere* s) {
+    sphere_print_internal(s, NULL, 0);
 }
 
 double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
@@ -78,6 +97,27 @@ typedef struct Light {
     double strength;
 } Light;
 
+void light_print_internal(Light* l, char* name, size_t indent) {
+    int id = 4 * (int) indent;
+
+    if(name)
+        printf("%.*s%s (light) {\n", id, SP, name);
+    else
+        printf("%.*s light {\n", id, SP);
+
+    vec_print_internal(&(l->pos), "pos", indent + 1);
+    
+    printf(
+        "%.*s    strength: %lf\n%.*s}\n", 
+        id, SP, l->strength,
+        id, SP
+    );
+}
+
+void light_print(Light* l) {
+    light_print_internal(l, NULL, 0);
+}
+
 //
 // `Vertex` declaration
 
@@ -87,23 +127,21 @@ typedef struct Vertex {
 } Vertex;
 
 void vertex_print_internal(Vertex* v, char* name, size_t indent) {
-    char* sp = "                                ";
-    
     int id = 4 * (int) indent;
 
-    printf(
-        "%.*s%s {\n"
-        "%.*s    point { %.4lf, %.4lf, %.4lf }\n"
-        "%.*s    normal { %.4lf, %.4lf, %.4lf }\n%.*s}\n",
-        id, sp, name,
-        id, sp, v->point.x, v->point.y, v->point.z,
-        id, sp, v->normal.x, v->normal.y, v->normal.z,
-        id, sp
-    );
+    if(name)
+        printf("%.*s%s (vertex) {\n", id, SP, name);
+    else
+        printf("%.*s vertex {\n", id, SP);
+
+    vec_print_internal(&(v->point), "point", indent + 1);
+    vec_print_internal(&(v->normal), "normal", indent + 1);
+
+    printf("%.*s}\n", id, SP);
 }
 
 void vertex_print(Vertex* v) {
-    vertex_print_internal(v, "vertex", 0);
+    vertex_print_internal(v, NULL, 0);
 }
 
 //
@@ -126,17 +164,25 @@ Tri tri_vvv(Vertex* a, Vertex* b, Vertex* c) {
     return (Tri) { a, b, c, centroid };
 }
 
+void tri_print_internal(Tri* t, char* name, int indent) {
+    int id = 4 * (int) indent;
+
+    if(name)
+        printf("%.*s%s (tri) {\n", id, SP, name);
+    else
+        printf("%.*s tri {\n", id, SP);
+
+    vertex_print_internal(t->a, "a", indent + 1);
+    vertex_print_internal(t->b, "b", indent + 1);
+    vertex_print_internal(t->c, "c", indent + 1);
+
+    vec_print_internal(&(t->centroid), "centroid", indent + 1);
+
+    printf("%.*s}\n", id, SP);
+}
+
 void tri_print(Tri* t) {
-    printf("tri {\n");
-
-    vertex_print_internal(t->a, "a", 1);
-    vertex_print_internal(t->b, "b", 1);
-    vertex_print_internal(t->c, "c", 1);
-
-    printf(
-        "    centroid { %.4lf, %.4lf, %.4lf }\n}\n",
-        t->centroid.x, t->centroid.y, t->centroid.z
-    );
+    tri_print_internal(t, NULL, 0);
 }
 
 double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
@@ -181,14 +227,6 @@ typedef struct Mesh {
 void mesh_free(Mesh* m) {
     free(m->vertices);
     free(m->tris);
-}
-
-void mesh_print(Mesh* m) {
-    printf(
-        "mesh {\n    vc: %u\n    tc: %u\n}\n", 
-        (unsigned) m->vc, 
-        (unsigned) m->tc
-    );
 }
 
 #endif /* GEOM_H */

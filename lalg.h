@@ -5,6 +5,8 @@
 #include<stdio.h>
 #include<math.h>
 
+#define SP "                                                                "
+
 //
 // `Vec` declaration
 
@@ -22,8 +24,24 @@ Vec vec_aaa(double a) {
     return (Vec) { a, a, a };
 }
 
+void vec_print_internal(Vec* v, char* name, size_t indent) {
+    int id = 4 * (int) indent;
+
+    if(name)
+        printf(
+            "%.*s%s (vec) { %.4lf, %.4lf, %.4lf }\n", 
+            id, SP, name, v->x, v->y, v->z
+        );
+    else
+        printf(
+            "%.*svec { %.4lf, %.4lf, %.4lf }\n", 
+            id, SP, v->x, v->y, v->z
+        );
+}
+
 void vec_print(Vec* v) {
-    printf("vec { %.4lf, %.4lf, %.4lf }\n", v->x, v->y, v->z);
+    // printf("vec { %.4lf, %.4lf, %.4lf }\n", v->x, v->y, v->z);
+    vec_print_internal(v, NULL, 0);
 }
 
 typedef enum VecType { VECTOR = 0, POINT = 1 } VecType;
@@ -47,18 +65,29 @@ void mat_free(Mat* m) {
     free(m->vs);
 }
 
-void mat_print(Mat* m) {
+void mat_print_internal(Mat* m, char* name, size_t indent) {
+    int id = 4 * (int) indent;
+
+    if(name)
+        printf("%.*s%s (mat) {\n", id, SP, name);
+    else
+        printf("%.*s mat {\n", id, SP);
+
     printf(
-        "mat {\n"
-        "    %.4lf, %.4lf, %.4lf, %.4lf,\n"
-        "    %.4lf, %.4lf, %.4lf, %.4lf,\n"
-        "    %.4lf, %.4lf, %.4lf, %.4lf,\n"
-        "    %.4lf, %.4lf, %.4lf, %.4lf\n}\n",
-        m->vs[0],  m->vs[1],  m->vs[2],  m->vs[3], 
-        m->vs[4],  m->vs[5],  m->vs[6],  m->vs[7], 
-        m->vs[8],  m->vs[9],  m->vs[10], m->vs[11], 
-        m->vs[12], m->vs[13], m->vs[14], m->vs[15] 
+        "%.*s    %.4lf, %.4lf, %.4lf, %.4lf,\n"
+        "%.*s    %.4lf, %.4lf, %.4lf, %.4lf,\n"
+        "%.*s    %.4lf, %.4lf, %.4lf, %.4lf,\n"
+        "%.*s    %.4lf, %.4lf, %.4lf, %.4lf\n%.*s}\n",
+        id, SP, m->vs[0],  m->vs[1],  m->vs[2],  m->vs[3], 
+        id, SP, m->vs[4],  m->vs[5],  m->vs[6],  m->vs[7], 
+        id, SP, m->vs[8],  m->vs[9],  m->vs[10], m->vs[11], 
+        id, SP, m->vs[12], m->vs[13], m->vs[14], m->vs[15],
+        id, SP
     );
+}
+
+void mat_print(Mat* m) {
+    mat_print_internal(m, NULL, 0);
 }
 
 //
