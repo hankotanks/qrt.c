@@ -38,7 +38,7 @@ Mat mat_id(void) {
     
     int i;
     for(i = 0; i < 4; i++) 
-        init.vs[i * 5] = 1.f;
+        init.vs[i * 5] = 1.;
 
     return init;
 }
@@ -123,7 +123,7 @@ Vec norm_v(Vec v) {
 }
 
 double distsq_vv(Vec a, Vec b) {
-    return pow(a.x - b.x, 2.f) + pow(a.y - b.y, 2.f) + pow(a.z - b.z, 2.f);
+    return pow(a.x - b.x, 2.) + pow(a.y - b.y, 2.) + pow(a.z - b.z, 2.);
 }
 
 double dist_vv(Vec a, Vec b) {
@@ -149,7 +149,7 @@ Mat scale(double x, double y, double z) {
     init.vs[0]  = x;
     init.vs[5]  = y;
     init.vs[10] = z;
-    init.vs[15] = 1.f;
+    init.vs[15] = 1.;
 
     return init;
 }
@@ -162,7 +162,7 @@ Mat rot_x(double t) {
 
     init.vs[5]  = c;
     init.vs[6]  = s;
-    init.vs[9]  = -1.f * s;
+    init.vs[9]  = -1. * s;
     init.vs[10] = c;
 
     return init;
@@ -175,7 +175,7 @@ Mat rot_y(double t) {
     double s = sin(t);
 
     init.vs[0]  = c;
-    init.vs[2]  = -1.f * s;
+    init.vs[2]  = -1. * s;
     init.vs[8]  = s;
     init.vs[10] = c;
 
@@ -190,7 +190,7 @@ Mat rot_z(double t) {
 
     init.vs[0] = c;
     init.vs[1] = s;
-    init.vs[4] = -1.f * s;
+    init.vs[4] = -1. * s;
     init.vs[5] = c;
 
     return init;

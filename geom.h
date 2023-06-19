@@ -3,6 +3,10 @@
 
 #include "lalg.h"
 
+#define MIN(i, j) (((i) < (j)) ? (i) : (j))
+
+#define EPS 0.0000001
+
 //
 // `Ray` declaration
 
@@ -37,6 +41,33 @@ void sphere_print(Sphere* s) {
         s->center.x, s->center.y, s->center.z,
         s->radius
     );
+}
+
+double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
+    double rad_sq = s.radius * s.radius;
+
+    Vec l = sub_vv(s.center, r.origin);
+
+    double tca = dot_vv(l, norm_v(r.dir));
+    double d_sq = dot_vv(l, l) - tca * tca;
+
+    if(d_sq > rad_sq) return t_max + 1.;
+
+    double thc = sqrt(rad_sq - d_sq);
+
+    double t = tca - thc;
+    double w = tca + thc;
+
+    double len = len_v(r.dir);
+    (t < t_max && t > t_min) ? t = t / len : (t = -1.);
+    (w < t_max && w > t_min) ? w = w / len : (w = -1.);
+
+    if(t > 0. && w == -1.) return t;
+    if(w > 0. && w == -1.) return w;
+
+    if(t > 0. && w > 0.) return MIN(t, w);
+
+    return t_max + 1.;
 }
 
 //
@@ -108,14 +139,43 @@ void tri_print(Tri* t) {
     );
 }
 
+double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
+    Vec e1 = sub_vv(t.b->point, t.a->point);
+    Vec e2 = sub_vv(t.c->point, t.a->point);
+
+    Vec p_vec = cross_vv(r.dir, e2);
+    Vec t_vec = sub_vv(r.origin, t.a->point);
+    Vec q_vec = cross_vv(t_vec, e1);
+
+    double det = dot_vv(e1, p_vec);
+
+    double u, v;
+    if(det > EPS) {
+        u = dot_vv(t_vec, p_vec);
+        if(u < 0. || u > det) return t_max + 1.;
+
+        v = dot_vv(r.dir, q_vec);
+        if(v < 0. || u + v > det) return t_max + 1.;
+    } else if(det < -1. * EPS) {
+        u = dot_vv(t_vec, p_vec);
+        if(u > 0. || u < det) return t_max + 1.;
+
+        v = dot_vv(r.dir, q_vec);
+        if(v > 0. || u + v < det) return t_max + 1.;
+    } else return t_max + 1.;
+
+    double w = dot_vv(e2, q_vec) / det;
+    return (w > t_max || w < t_min) ? t_max + 1. : w;
+}
+
 //
 // `Mesh` declaration
 
 typedef struct Mesh {
-    Vertex* vertices;
     size_t vc;
-    Tri* tris;
     size_t tc;
+    Vertex* vertices;
+    Tri* tris;
 } Mesh;
 
 void mesh_free(Mesh* m) {
@@ -125,11 +185,10 @@ void mesh_free(Mesh* m) {
 
 void mesh_print(Mesh* m) {
     printf(
-        "mesh {\n    tc: %u\n    vc: %u\n}\n", 
-        (unsigned) m->tc, 
-        (unsigned) m->vc
+        "mesh {\n    vc: %u\n    tc: %u\n}\n", 
+        (unsigned) m->vc, 
+        (unsigned) m->tc
     );
 }
-
 
 #endif /* GEOM_H */

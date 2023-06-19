@@ -2,37 +2,14 @@
 #include "geom.h"
 #include "in.h"
 #include "buffer.h"
+#include "scene.h"
 
 //
-// `Camera declaration
+// Raytracing
 
-typedef struct Camera {
-    Vec pos;
-    Vec at;
-} Camera;
+void raytrace(Buffer* b, Scene s, Config c) {
 
-//
-// `Scene` declaration
-
-typedef struct Scene {
-    Mesh* meshes;
-    size_t mc;
-    Sphere* spheres;
-    size_t sc;
-    Light* lights;
-    size_t lc;
-    Camera camera;
-} Scene;
-
-//
-// `Config` declaration
-
-typedef struct Config {
-    double t_min;
-    double t_max;
-    double fov;
-    double ambience;
-} Config;
+}
 
 //
 // Main function
@@ -40,14 +17,31 @@ typedef struct Config {
 int main(void) {
     Mesh m = mesh_from_raw_vvvnnn("./models/uteapot_vvvnnn");
 
-    mesh_print(&m);
+    Scene s = (Scene) {
+        .camera = (Camera) { .pos = vec_aaa(0.), .at = vec_abc(0., 0., 1.) },
+        .mc = 1,
+        .sc = 0,
+        .lc = 0,
+        .meshes = &m,
+        .spheres = NULL,
+        .lights = NULL
+    };
 
-    tri_print(&(m.tris[4]));
+    Ray r = (Ray) {
+        .origin = vec_abc(0., 0., -10.),
+        .dir = vec_abc(0., 0., 1.)
+    };
 
-    Buffer b = buffer_wh(640, 360);
-    buffer_export_as_ppm(b, "./test.ppm");
-    buffer_free(&b);
-    mesh_free(&m);
+    Config c = (Config) {
+        .t_min = 1.,
+        .t_max = 1000.,
+        .fov = 1.570796,
+        .ambience = 0.2
+    };
+
+    Intersection i = intersection_check(s, c, r);
+
+    intersection_print(&i);
 
     return 0;
 }
