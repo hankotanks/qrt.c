@@ -7,15 +7,18 @@
 //
 // Raytracing
 
+/*
 void raytrace(Buffer* b, Scene s, Config c) {
 
-}
+} */
 
 //
 // Main function
 
 int main(void) {
     Mesh m = mesh_from_raw_vvvnnn("./models/uteapot_vvvnnn");
+
+    BVH h = bvh(m.tc, m.tris);
 
     Scene s = (Scene) {
         .camera = (Camera) { .pos = vec_aaa(0.), .at = vec_abc(0., 0., 1.) },
