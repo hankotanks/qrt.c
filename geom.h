@@ -5,7 +5,7 @@
 
 #define MIN(i, j) (((i) < (j)) ? (i) : (j))
 
-#define EPS_TI 0.0000001
+#define EPS 0.0000001
 
 //
 // `Ray` declaration
@@ -196,13 +196,13 @@ double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
     double det = dot_vv(e1, p_vec);
 
     double u, v;
-    if(det > EPS_TI) {
+    if(det > EPS) {
         u = dot_vv(t_vec, p_vec);
         if(u < 0. || u > det) return t_max + 1.;
 
         v = dot_vv(r.dir, q_vec);
         if(v < 0. || u + v > det) return t_max + 1.;
-    } else if(det < -1. * EPS_TI) {
+    } else if(det < -1. * EPS) {
         u = dot_vv(t_vec, p_vec);
         if(u > 0. || u < det) return t_max + 1.;
 

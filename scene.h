@@ -1,12 +1,14 @@
-#ifndef INTERSECTION_H
-#define INTERSECTION_H
+#ifndef SCENE_H
+#define SCENE_H
 
 #include<assert.h>
+#include<float.h>
 
 #include "lalg.h"
 #include "geom.h"
 
-#define EPS_BVH 0.000002
+#define MIN(i, j) (((i) < (j)) ? (i) : (j))
+#define MAX(i, j) (((i) > (j)) ? (i) : (j))
 
 //
 // `Camera declaration
@@ -17,19 +19,6 @@ typedef struct Camera {
 } Camera;
 
 //
-// `Scene` declaration
-
-typedef struct Scene {
-    Camera camera;
-    size_t mc;
-    size_t sc;
-    size_t lc;
-    Mesh* meshes;
-    Sphere* spheres;
-    Light* lights;
-} Scene;
-
-//
 // `Config` declaration
 
 typedef struct Config {
@@ -38,6 +27,34 @@ typedef struct Config {
     double fov;
     double ambience;
 } Config;
+
+//
+// `BVH` declaration
+
+typedef struct BVH BVH;
+
+struct BVH {
+    BVH* l;
+    BVH* r;
+    Vec minima;
+    Vec maxima;
+    size_t tc;
+    Tri* tris;
+};
+
+//
+// `Scene` declaration
+
+typedef struct Scene {
+    Camera camera;
+    size_t mc;
+    size_t sc;
+    size_t lc;
+    Mesh* meshes;
+    BVH* hierarchy;
+    Sphere* spheres;
+    Light* lights;
+} Scene;
 
 //
 // `Surface` declaration
@@ -73,23 +90,25 @@ void exclusion_print(Exclusion* e) {
 }
 
 //
-// `BVH` declaration
-
-typedef struct BVH BVH;
-
-struct BVH {
-    BVH* l;
-    BVH* r;
-    Vec minima;
-    Vec maxima;
-    size_t tc;
-    Tri* tris;
-};
+// `BVH` functions
 
 void bvh_split(BVH* h);
 
-BVH bvh(size_t tc, Tri* tris) {
-    if(!tc) return (BVH) {  };
+BVH* bvh(size_t mc, Mesh* meshes) {
+    size_t m, tc = 0;
+    for(m = 0; m < mc; m++) tc += meshes[m].tc;
+
+    Tri* tris = malloc(tc * (sizeof *tris));
+
+    size_t n, ctc = 0;
+    for(m = 0; m < mc; m++) {
+        for(n = 0; n < meshes[m].tc; n++) {
+            tris[ctc] = meshes[m].tris[n];
+            ++ctc;
+        }
+    }
+
+    if(!tc) return NULL;
 
     Vec minima = tris[0].centroid;
     Vec maxima = minima;
@@ -109,7 +128,8 @@ BVH bvh(size_t tc, Tri* tris) {
         if(c.z > maxima.z) maxima.z = c.z;
     }
 
-    BVH h = (BVH) {
+    BVH* h = malloc(sizeof *h);
+    *h = (BVH) {
         .l = NULL,
         .r = NULL,
         .minima = minima,
@@ -118,9 +138,17 @@ BVH bvh(size_t tc, Tri* tris) {
         .tris = tris
     };
 
-    bvh_split(&h);
+    bvh_split(h);
 
     return h;
+}
+
+void bvh_free(BVH* h) {
+    if(h->l) bvh_free(h->l);
+    if(h->r) bvh_free(h->r);
+    
+    free(h->tris);
+    free(h);
 }
 
 //
@@ -138,7 +166,7 @@ int helper_bvh_contains(Vec minima, Vec maxima, Vec t) {
 }
 
 int helper_bvh_scale_check(double d, BVH* l, BVH* r) {
-    if(d < EPS_BVH) {
+    if(d < 0.000002) {
         free(l->tris);
         free(l);
         free(r->tris);
@@ -163,15 +191,21 @@ void bvh_split(BVH* h) {
 
     BVH* l = malloc(sizeof *l);
     *l = (BVH) {
+        .l = NULL,
+        .r = NULL,
         .minima = h->minima,
         .maxima = h->maxima,
+        .tc = 0,
         .tris = malloc(h->tc * (sizeof *(l->tris)))
     };
 
     BVH* r = malloc(sizeof *r);
     *r = (BVH) {
+        .l = NULL,
+        .r = NULL,
         .minima = h->minima,
         .maxima = h->maxima,
+        .tc = 0,
         .tris = malloc(h->tc * (sizeof *(r->tris)))
     };
 
@@ -232,8 +266,30 @@ void bvh_split(BVH* h) {
     }
 }
 
-void bvh_print(BVH* h) {
-    // TODO
+int helper_bvh_ray_collides(BVH* h, Ray r) {
+    double min = 0.0;
+    double max = DBL_MAX;
+    
+    double t0, t1;
+    t0 = (h->minima.x - r.origin.x) / r.dir.x;
+    t1 = (h->maxima.x - r.origin.x) / r.dir.x;
+
+    min = MAX(min, MIN(t0, t1));
+    max = MIN(max, MAX(t0, t1)); 
+
+    t0 = (h->minima.y - r.origin.y) / r.dir.y;
+    t1 = (h->maxima.y - r.origin.y) / r.dir.y;
+
+    min = MAX(min, MIN(t0, t1));
+    max = MIN(max, MAX(t0, t1)); 
+
+    t0 = (h->minima.z - r.origin.z) / r.dir.z;
+    t1 = (h->maxima.z - r.origin.z) / r.dir.z;
+
+    min = MAX(min, MIN(t0, t1));
+    max = MIN(max, MAX(t0, t1)); 
+
+    return min <= max;
 }
 
 //
@@ -265,27 +321,59 @@ void intersection_print(Intersection* i) {
     }; printf("}\n");
 }
 
-//
-// Intersection check
-
-Intersection intersection_check_excl(Scene s, Config c, Ray r, Exclusion e) {
+Intersection helper_bvh_intersection(Config c, BVH* h, Ray r, Exclusion e) {
     Intersection intrs = (Intersection) {
         .s = NONE,
         .t = c.t_max + 1.
     };
 
-    size_t i, j;
+    if(!helper_bvh_ray_collides(h, r)) return intrs;
 
-    double t;
+    if(!h->l || !h->r) {
+        size_t i; double t; Tri* temp;
+        for(i = 0; i < h->tc; i++) {
+            temp = &(h->tris[i]);
+            t = tri_intersection(*temp, r, c.t_min, c.t_max);
+
+            if(t < intrs.t && !(e.s == TRI && tri_eq(e.tri, temp))) {
+                intrs.s = TRI;
+                intrs.t = t;
+                intrs.tri = temp;
+            }
+        }
+
+        return intrs;
+    }
+
+    Intersection left, right;
+    left = helper_bvh_intersection(c, h->l, r, e);
+    right = helper_bvh_intersection(c, h->r, r, e);
+
+    return (left.t <= right.t) ? left : right;
+}
+
+//
+// Intersection check
+
+Intersection intersection_check_excl(Scene s, Config c, Ray r, Exclusion e) {
+    Intersection intrs_a, intrs_b;
+    intrs_a = (Intersection) {
+        .s = NONE,
+        .t = c.t_max + 1.
+    };
+
+    size_t i; double t;
     for(i = 0; i < s.sc; i++) {
         t = sphere_intersection(s.spheres[i], r, c.t_min, c.t_max);
-        if(t < intrs.t && !(e.s == SPHERE && e.sphere != &(s.spheres[i]))) {
-            intrs.s = SPHERE;
-            intrs.t = t;
-            intrs.sphere = &(s.spheres[i]);
+        if(t < intrs_a.t && !(e.s == SPHERE && e.sphere != &(s.spheres[i]))) {
+            intrs_a.s = SPHERE;
+            intrs_a.t = t;
+            intrs_a.sphere = &(s.spheres[i]);
         }
     }
 
+    /*
+    size_t j;
     Mesh* tm; Tri* tt;
     for(i = 0; i < s.mc; i++) {
         tm = &(s.meshes[i]);
@@ -293,15 +381,22 @@ Intersection intersection_check_excl(Scene s, Config c, Ray r, Exclusion e) {
             tt = &(tm->tris[j]);
             
             t = tri_intersection(*tt, r, c.t_min, c.t_max);
-            if(t < intrs.t && !(e.s == TRI && tri_eq(e.tri, tt))) {
-                intrs.s = TRI;
-                intrs.t = t;
-                intrs.tri = tt;
+            if(t < intrs_a.t && !(e.s == TRI && tri_eq(e.tri, tt))) {
+                intrs_a.s = TRI;
+                intrs_a.t = t;
+                intrs_a.tri = tt;
             }
         }
-    }
+    } 
 
-    return intrs;
+    printf("%lf\n", intrs_a.t);
+
+    return intrs_a;
+    */
+
+    intrs_b = helper_bvh_intersection(c, s.hierarchy, r, e);
+
+    return (intrs_b.t < intrs_a.t) ? intrs_b : intrs_a;
 }
 
 Intersection intersection_check(Scene s, Config c, Ray r) {
@@ -310,4 +405,4 @@ Intersection intersection_check(Scene s, Config c, Ray r) {
     return intersection_check_excl(s, c, r, e);
 }
 
-#endif /* INTERSECTION_H */
+#endif /* SCENE_H */

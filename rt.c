@@ -18,7 +18,7 @@ void raytrace(Buffer* b, Scene s, Config c) {
 int main(void) {
     Mesh m = mesh_from_raw_vvvnnn("./models/uteapot_vvvnnn");
 
-    BVH h = bvh(m.tc, m.tris);
+    BVH* h = bvh(1, &m);
 
     Scene s = (Scene) {
         .camera = (Camera) { .pos = vec_aaa(0.), .at = vec_abc(0., 0., 1.) },
@@ -26,13 +26,14 @@ int main(void) {
         .sc = 0,
         .lc = 0,
         .meshes = &m,
+        .hierarchy = h,
         .spheres = NULL,
         .lights = NULL
     };
 
     Ray r = (Ray) {
         .origin = vec_abc(0., 0., -10.),
-        .dir = vec_abc(0., 0., 1.)
+        .dir = norm_v(vec_abc(0., 0.02, 1.))
     };
 
     Config c = (Config) {
