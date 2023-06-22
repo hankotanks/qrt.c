@@ -5,7 +5,7 @@
 
 #define MIN(i, j) (((i) < (j)) ? (i) : (j))
 
-#define EPS 0.0000001
+#define EPS_TRI 0.0000001
 
 //
 // `Ray` declaration
@@ -87,6 +87,10 @@ double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
     if(t > 0. && w > 0.) return MIN(t, w);
 
     return t_max + 1.;
+}
+
+int sphere_eq(Sphere a, Sphere b) {
+    return a.center.x == b.center.x && a.center.y == b.center.y && a.center.z == b.center.z && a.radius == b.radius;
 }
 
 //
@@ -196,13 +200,13 @@ double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
     double det = dot_vv(e1, p_vec);
 
     double u, v;
-    if(det > EPS) {
+    if(det > EPS_TRI) {
         u = dot_vv(t_vec, p_vec);
         if(u < 0. || u > det) return t_max + 1.;
 
         v = dot_vv(r.dir, q_vec);
         if(v < 0. || u + v > det) return t_max + 1.;
-    } else if(det < -1. * EPS) {
+    } else if(det < -1. * EPS_TRI) {
         u = dot_vv(t_vec, p_vec);
         if(u > 0. || u < det) return t_max + 1.;
 
@@ -214,8 +218,8 @@ double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
     return (w > t_max || w < t_min) ? t_max + 1. : w;
 }
 
-int tri_eq(Tri* a, Tri* b) {
-    return (a->a == b->a && a->b == b->b && a->c == b->c);
+int tri_eq(Tri a, Tri b) {
+    return (a.a == b.a && a.b == b.b && a.c == b.c);
 }
 
 //

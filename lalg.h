@@ -131,6 +131,10 @@ Mat mul_mm(Mat m, Mat n) {
     return res;
 }
 
+Vec inv_v(Vec v) {
+    return (Vec) { 1. / v.x, 1. / v.y, 1. / v.z };
+}
+
 double dot_vv(Vec a, Vec b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
