@@ -109,6 +109,8 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
 }
 
 void raytrace(Buffer b, Scene s, Config c) {
+    assert(s.tt);
+
     size_t x, y;
     for(x = 0; x < b.w; x++)
         for(y = 0; y < b.h; y++) {
@@ -122,22 +124,21 @@ void raytrace(Buffer b, Scene s, Config c) {
 // Main function
 
 int main(void) {
-    Mesh m = mesh_from_raw_vvvnnn("./models/uteapot_vvvnnn");
+    Camera camera = (Camera) { .pos = vec_abc(0., 5., -10.0), .at = vec_aaa(0.) };
 
-    BVH* h = bvh(1, &m);
+    Scene scene = scene_new(camera);
+
+    scene_add_mesh(&scene, mesh_from_raw_vvvnnn("teapot", "./models/uteapot_vvvnnn"));
+    scene_initialize(&scene);
 
     Light l = (Light) { .pos = vec_abc(0., 10., -10.), .strength = 1. };
 
-    Scene s = (Scene) {
-        .camera = (Camera) { .pos = vec_abc(0., 5., -10.0), .at = vec_aaa(0.) },
-        .mc = 1,
-        .sc = 0,
-        .lc = 1,
-        .meshes = &m,
-        .hierarchy = h,
-        .spheres = NULL,
-        .lights = &l
-    };
+    Sphere sphere = (Sphere) { .center = vec_abc(0.0, 0.0, 15.0), .radius = 10. };
+
+    scene.lc++;
+    scene.sc++;
+    scene.lights = &l;
+    scene.spheres = &sphere;
 
     Config c = (Config) {
         .t_min = 0.01,
@@ -148,11 +149,56 @@ int main(void) {
 
     Buffer b = buffer_wh(640, 360);
 
-    raytrace(b, s, c);
+    raytrace(b, scene, c);
 
     buffer_export_as_ppm(b, "test2.ppm");
 
     printf("Complete...\n");
 
+    scene_free(&scene);
+    buffer_free(&b);
+
     return 0;
 }
+
+/*
+    NEXT STEPS:
+    + finalize an API
+    - implement API & associated new features (Mesh as SLL, etc)
+    - Write parser for MTL and OBJ files
+    - Mesh creation should specify a material name to use
+    - Add a list of Material objects to the Scene
+        - Should it be a member of Scene or Config?
+    - Should Spheres and Lights also be SLL?
+        - Or should Spheres occupy the BVH
+*/
+
+/*
+
+int main(void) {
+    Camera camera = camera_new(vec_abc(0., 0., -10.), vec_aaa(0.));
+
+    Scene scene = scene_new(camera);
+    scene_add_materials("./models/materials.mtl");
+    scene_add_mesh(scene, mesh_from_raw("teapot", "./models/uteapot", "ShinyOrange"));
+    
+    Mesh* teapot = scene_get_mesh(scene, "teapot");
+    mesh_transform(teapot, TRANSLATE, vec_abc(4., 4., 0.));
+    
+    scene_initialize(scene);
+
+    Config config = (Config) {
+        .t_min = 0.01,
+        .t_max = 1000.,
+        .fov = 1.570796,
+        .ambience = 0.2
+    };
+
+    Buffer buffer = buffer_wh(640, 360);
+
+    raytrace(buffer, scene, config);
+
+    buffer_export_as_ppm(b, "test.ppm");
+}
+
+*/

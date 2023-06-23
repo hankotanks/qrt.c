@@ -99,14 +99,13 @@ void buffer_export_as_ppm(Buffer b, char* file) {
     s[i++] = '5';
     s[i++] = (char) 10;
 
-
-    
     FILE* f;
     if((f = fopen(file, "wb+"))) {
         fwrite(s, 1, s_len, f);
         fwrite(b.vs, 1, 3 * b.w * b.h, f);
     }
 
+    fclose(f);
     free(s);
 }
  

@@ -21,6 +21,21 @@ typedef struct Camera {
 } Camera;
 
 //
+// `Material` declaration
+
+typedef struct Material Material;
+
+struct Material {
+    char* name;
+    Vec color_ambient;
+    Vec color_diffuse;
+    Vec color_spec;
+    double luster;
+    double metallicity;
+    Material* next;
+};
+
+//
 // `Config` declaration
 
 typedef struct Config {
@@ -49,14 +64,59 @@ struct BVH {
 
 typedef struct Scene {
     Camera camera;
-    size_t mc;
-    size_t sc;
     size_t lc;
-    Mesh* meshes;
-    BVH* hierarchy;
-    Sphere* spheres;
+    size_t sc;
     Light* lights;
+    Mesh* meshes;
+    BVH* tt;
+    Sphere* spheres;
 } Scene;
+
+Scene scene_new(Camera c) {
+    return (Scene) {
+        .camera = c,
+        .lights = NULL,
+        .meshes = NULL,
+        .tt = NULL,
+        .spheres = NULL
+    };
+}
+
+void scene_add_mesh(Scene* s, Mesh* m) {
+    if(!s->meshes)
+        s->meshes = m;
+    else {
+        Mesh* curr = s->meshes;
+        while(curr->next) curr = curr->next;
+
+        curr->next = m;
+    }
+}
+
+BVH* bvh(Mesh* meshes);
+void bvh_free(BVH* h);
+
+void scene_initialize(Scene* s) {
+    s->tt = bvh(s->meshes);
+}
+
+void scene_free(Scene* s) {
+    if(s->tt) bvh_free(s->tt);
+
+    Mesh* temp;
+    while(s->meshes) {
+        temp = s->meshes;
+        s->meshes = s->meshes->next;
+
+        free(temp->name);
+        free(temp->vertices);
+        free(temp->tris);
+        free(temp);
+    }
+
+    if(s->lights) free(s->lights);
+    if(s->spheres) free(s->spheres);
+}
 
 //
 // `Surface` declaration
@@ -135,22 +195,31 @@ void helper_bvh_extrema(size_t tc, Tri* tris, Vec* minima, Vec* maxima) {
 
 void bvh_split(BVH* h);
 
-BVH* bvh(size_t mc, Mesh* meshes) {
-    size_t m, tc = 0;
-    for(m = 0; m < mc; m++) tc += meshes[m].tc;
+BVH* bvh(Mesh* meshes) {
+    if(!meshes) return NULL;
+
+    Mesh* curr = meshes;
+
+    size_t tc = 0, c = 0;
+    while(curr != NULL) {
+        tc += curr->tc;
+        curr = curr->next;
+    }
+    
+    if(!tc) return NULL;
 
     Tri* tris = malloc(tc * (sizeof *tris));
 
-    size_t ctc = 0;
-    for(m = 0; m < mc; m++) {
+    curr = meshes;
+    while(curr != NULL) {
         size_t n;
-        for(n = 0; n < meshes[m].tc; n++) {
-            tris[ctc] = meshes[m].tris[n];
-            ++ctc;
+        for(n = 0; n < curr->tc; n++) {
+            tris[c] = curr->tris[n];
+            ++c;
         }
-    }
 
-    if(!tc) return NULL;
+        curr = curr->next;
+    }
 
     Vec minima, maxima;
     helper_bvh_extrema(tc, tris, &minima, &maxima);
@@ -451,7 +520,7 @@ Intersection intersection_check_excl(Scene s, Config c, Ray r, Exclusion e) {
     return intrs_c;
 #endif
 
-    intrs_b = helper_bvh_intersection(c, s.hierarchy, r, e);
+    intrs_b = helper_bvh_intersection(c, s.tt, r, e);
 
     return (intrs_a.t < intrs_b.t) ? intrs_a : intrs_b;
 }

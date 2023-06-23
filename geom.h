@@ -225,16 +225,15 @@ int tri_eq(Tri a, Tri b) {
 //
 // `Mesh` declaration
 
-typedef struct Mesh {
+typedef struct Mesh Mesh;
+
+struct Mesh {
+    char* name;
     size_t vc;
     size_t tc;
     Vertex* vertices;
     Tri* tris;
-} Mesh;
-
-void mesh_free(Mesh* m) {
-    free(m->vertices);
-    free(m->tris);
-}
+    Mesh* next;
+};
 
 #endif /* GEOM_H */
