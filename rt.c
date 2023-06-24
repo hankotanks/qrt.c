@@ -63,12 +63,12 @@ Vec helper_tri_normal(Tri t, Vec pos) {
 void intersection_normal(Intersection i, Ray r, Vec* normal, Vec* hit) {
     *hit = add_vv(r.origin, mul_vs(r.dir, i.t));
 
-    switch(i.s) {
+    switch(i.s.st) {
         case SPHERE: 
-            *normal = norm_v(sub_vv(*hit, i.sphere.center));
+            *normal = norm_v(sub_vv(*hit, i.s.sphere->center));
             break;
         case TRI: 
-            *normal = helper_tri_normal(i.tri, *hit);
+            *normal = helper_tri_normal(*i.s.tri, *hit);
             break;
         default: break;
     }
@@ -78,7 +78,7 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
     Ray r = camera_ray(s, h, w, x, y);
 
     Intersection intrs = intersection_check(s, c, r);
-    if(intrs.s == NONE) return vec_aaa(0.);
+    if(intrs.s.st == NONE) return vec_aaa(0.);
 
     Vec normal, hit;
     intersection_normal(intrs, r, &normal, &hit);
@@ -92,8 +92,8 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
             .dir = norm_v(sub_vv(l->pos, hit))
         };
         
-        Intersection shadow = intersection_check_excl(s, c, light_ray, intersection_into_exclusion(intrs));
-        if(shadow.s == NONE) {
+        Intersection shadow = intersection_check_excl(s, c, light_ray, intrs.s);
+        if(shadow.s.st == NONE) {
             double temp = dot_vv(normal, light_ray.dir) * l->strength;
             if(temp >= 0.) {
                 Vec refl = sub_vv(r.dir, mul_vs(normal, 2. * dot_vv(normal, r.dir)));

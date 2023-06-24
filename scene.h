@@ -46,6 +46,42 @@ typedef struct Config {
 } Config;
 
 //
+// `Surface` declaration
+
+typedef enum SurfaceType { NONE = 0, TRI, SPHERE } SurfaceType;
+
+typedef struct Surface {
+    SurfaceType st;
+    union {
+        Tri* tri;
+        Sphere* sphere;
+    };
+} Surface;
+
+void surface_print_internal(Surface* s, char* name, size_t indent) {
+    int id = 4 * (int) indent;
+
+    if(name)
+        printf("%.*s%s (surface) {\n", id, SP, name);
+    else 
+        printf("%.*s surface {\n", id, SP);
+
+    switch(s->st) {
+        case TRI:
+            tri_print_internal(s->tri, NULL, indent + 1);
+            break;
+        case SPHERE:
+            sphere_print_internal(s->sphere, NULL, indent + 1);
+            break;
+        default: break;
+    } printf("%.*s}\n", id, SP);
+}
+
+void surface_print(Surface* s) {
+    surface_print_internal(s, NULL, 0);
+}
+
+//
 // `BVH` declaration
 
 typedef struct BVH BVH;
@@ -55,8 +91,8 @@ struct BVH {
     BVH* r;
     Vec minima;
     Vec maxima;
-    size_t tc;
-    Tri* tris;
+    size_t c;
+    Surface* surfaces;
 };
 
 //
@@ -131,46 +167,9 @@ void scene_free(Scene* s) {
 }
 
 //
-// `Surface` declaration
-
-typedef enum Surface { NONE = 0, TRI, SPHERE } Surface;
-
-//
-// `Exclusion` declaration
-
-typedef struct Exclusion {
-    Surface s;
-    union {
-        Tri tri;
-        Sphere sphere;
-    };
-} Exclusion;
-
-void exclusion_print(Exclusion* e) {
-    if(e->s == NONE)
-        printf("exclusion: None\n");
-    else
-        printf("exclusion {\n");
-
-    switch(e->s) {
-        case SPHERE:
-            sphere_print_internal(&e->sphere, NULL, 1);
-            break;
-        case TRI:
-            tri_print_internal(&e->tri, NULL, 1);
-            break;
-        default: return;
-    }; printf("}\n");
-}
-
-//
 // `BVH` functions
 
-void helper_bvh_extrema_test(Tri t, Vec* minima, Vec* maxima) {
-    Vec a = t.a->point;
-    Vec b = t.b->point;
-    Vec c = t.c->point;
-
+void helper_bvh_extrema_point_test(Vec a, Vec* minima, Vec* maxima) {
     if(a.x < minima->x) minima->x = a.x;
     if(a.y < minima->y) minima->y = a.y;
     if(a.z < minima->z) minima->z = a.z;
@@ -178,31 +177,34 @@ void helper_bvh_extrema_test(Tri t, Vec* minima, Vec* maxima) {
     if(a.x > maxima->x) maxima->x = a.x;
     if(a.y > maxima->y) maxima->y = a.y;
     if(a.z > maxima->z) maxima->z = a.z;
-
-    if(b.x < minima->x) minima->x = b.x;
-    if(b.y < minima->y) minima->y = b.y;
-    if(b.z < minima->z) minima->z = b.z;
-
-    if(b.x > maxima->x) maxima->x = b.x;
-    if(b.y > maxima->y) maxima->y = b.y;
-    if(b.z > maxima->z) maxima->z = b.z;
-
-    if(c.x < minima->x) minima->x = c.x;
-    if(c.y < minima->y) minima->y = c.y;
-    if(c.z < minima->z) minima->z = c.z;
-
-    if(c.x > maxima->x) maxima->x = c.x;
-    if(c.y > maxima->y) maxima->y = c.y;
-    if(c.z > maxima->z) maxima->z = c.z;
 }
 
-void helper_bvh_extrema(size_t tc, Tri* tris, Vec* minima, Vec* maxima) {
+void helper_bvh_extrema(size_t c, Surface* surfaces, Vec* minima, Vec* maxima) {
     *minima = vec_aaa(DBL_MAX);
     *maxima = vec_aaa(-1. * DBL_MAX);
 
     size_t i;
-    for(i = 0; i < tc; i++)
-        helper_bvh_extrema_test(tris[i], minima, maxima);
+    for(i = 0; i < c; i++) {
+        Surface s = surfaces[i];
+        switch(s.st) {
+            case TRI: {
+                helper_bvh_extrema_point_test(s.tri->a->point, minima, maxima);
+                helper_bvh_extrema_point_test(s.tri->b->point, minima, maxima);
+                helper_bvh_extrema_point_test(s.tri->c->point, minima, maxima);
+            }; break;
+            case SPHERE: {
+                Vec a = vec_aaa(s.sphere->radius);
+
+                Vec mn = sub_vv(s.sphere->center, a);
+                Vec mx = add_vv(s.sphere->center, a);
+
+                helper_bvh_extrema_point_test(mn, minima, maxima);
+                helper_bvh_extrema_point_test(mx, minima, maxima);
+            }; break;
+            default: break;
+        }
+       
+    }
 }
 
 void bvh_split(BVH* h);
@@ -220,13 +222,17 @@ BVH* bvh(Mesh* meshes) {
     
     if(!tc) return NULL;
 
-    Tri* tris = malloc(tc * (sizeof *tris));
+    Surface* surfaces = malloc(tc * (sizeof *surfaces));
 
     curr = meshes;
     while(curr != NULL) {
         size_t n;
         for(n = 0; n < curr->tc; n++) {
-            tris[c] = curr->tris[n];
+            surfaces[c] = (Surface) {
+                .st = TRI,
+                .tri = &curr->tris[n]
+            };
+
             ++c;
         }
 
@@ -234,7 +240,7 @@ BVH* bvh(Mesh* meshes) {
     }
 
     Vec minima, maxima;
-    helper_bvh_extrema(tc, tris, &minima, &maxima);
+    helper_bvh_extrema(tc, surfaces, &minima, &maxima);
 
     BVH* h = malloc(sizeof *h);
     *h = (BVH) {
@@ -242,8 +248,8 @@ BVH* bvh(Mesh* meshes) {
         .r = NULL,
         .minima = minima,
         .maxima = maxima,
-        .tc = tc,
-        .tris = tris
+        .c = tc,
+        .surfaces = surfaces
     };
     
     bvh_split(h);
@@ -255,7 +261,7 @@ void bvh_free(BVH* h) {
     if(h->l) bvh_free(h->l);
     if(h->r) bvh_free(h->r);
     
-    free(h->tris);
+    free(h->surfaces);
     free(h);
 }
 
@@ -273,15 +279,21 @@ int helper_bvh_contains_point(Vec minima, Vec maxima, Vec p) {
     );
 }
 
-int helper_bvh_contains(Vec minima, Vec maxima, Tri t) {
-    return helper_bvh_contains_point(minima, maxima, t.centroid);
+int helper_bvh_contains(Vec minima, Vec maxima, Surface s) {
+    switch(s.st) {
+        case TRI:
+            return helper_bvh_contains_point(minima, maxima, s.tri->centroid);
+        case SPHERE:
+            return helper_bvh_contains_point(minima, maxima, s.sphere->center);
+        default: return 0;
+    }
 }
 
 int helper_bvh_scale_check(double d, BVH* l, BVH* r) {
     if(d < 0.5 * EPS_BVH) { // 0.000002
-        free(l->tris);
+        free(l->surfaces);
         free(l);
-        free(r->tris);
+        free(r->surfaces);
         free(r);
 
         return 1;
@@ -294,7 +306,7 @@ int helper_bvh_scale_check(double d, BVH* l, BVH* r) {
 // `BVH` split functionality
 
 void bvh_split(BVH* h) {
-    if(h->tc == 1) return;
+    if(h->c == 1) return;
 
     double dx, dy, dz;
     dx = h->maxima.x - h->minima.x;
@@ -307,8 +319,8 @@ void bvh_split(BVH* h) {
         .r = NULL,
         .minima = h->minima,
         .maxima = h->maxima,
-        .tc = 0,
-        .tris = malloc(h->tc * (sizeof *(l->tris)))
+        .c = 0,
+        .surfaces = malloc(h->c * (sizeof *(l->surfaces)))
     };
 
     BVH* r = malloc(sizeof *r);
@@ -317,8 +329,8 @@ void bvh_split(BVH* h) {
         .r = NULL,
         .minima = h->minima,
         .maxima = h->maxima,
-        .tc = 0,
-        .tris = malloc(h->tc * (sizeof *(r->tris)))
+        .c = 0,
+        .surfaces = malloc(h->c * (sizeof *(r->surfaces)))
     };
 
     if(dx >= dy && dx >= dz) { // dx
@@ -339,24 +351,24 @@ void bvh_split(BVH* h) {
     }
 
     size_t i;
-    for(i = 0; i < h->tc; i++) {
-        if(helper_bvh_contains(l->minima, l->maxima, h->tris[i])) {
-            l->tris[l->tc] = h->tris[i];
-            ++(l->tc);
+    for(i = 0; i < h->c; i++) {
+        if(helper_bvh_contains(l->minima, l->maxima, h->surfaces[i])) {
+            l->surfaces[l->c] = h->surfaces[i];
+            ++(l->c);
         } else {
-            r->tris[r->tc] = h->tris[i];
-            ++(r->tc);
+            r->surfaces[r->c] = h->surfaces[i];
+            ++(r->c);
         }
     }
 
-    if(l->tc == 0) {
+    if(l->c == 0) {
         h->minima = r->minima;
         h->maxima = r->maxima;
 
         helper_bvh_scale_check(0., l, r);
 
         bvh_split(h);
-    } else if(r->tc == 0) {
+    } else if(r->c == 0) {
         h->minima = l->minima;
         h->maxima = l->maxima;
 
@@ -364,16 +376,16 @@ void bvh_split(BVH* h) {
 
         bvh_split(h);
     } else {
-        l->tris = realloc(l->tris, l->tc * (sizeof *(l->tris)));
-        assert(l->tris);
+        l->surfaces = realloc(l->surfaces, l->c * (sizeof *l->surfaces));
+        assert(l->surfaces);
 
-        r->tris = realloc(r->tris, r->tc * (sizeof *(r->tris)));
-        assert(r->tris);
+        r->surfaces = realloc(r->surfaces, r->c * (sizeof *r->surfaces));
+        assert(r->surfaces);
 
-        helper_bvh_extrema(l->tc, l->tris, &l->minima, &l->maxima);
+        helper_bvh_extrema(l->c, l->surfaces, &l->minima, &l->maxima);
         bvh_split(l);
 
-        helper_bvh_extrema(r->tc, r->tris, &r->minima, &r->maxima);
+        helper_bvh_extrema(r->c, r->surfaces, &r->minima, &r->maxima);
         bvh_split(r);
 
         h->l = l;
@@ -384,18 +396,16 @@ void bvh_split(BVH* h) {
 void bvh_print_internal(BVH* h, size_t indent) {
     int id = 4 * (int) indent;
 
-    printf("%.*sbvh (%u) {\n", id, SP, (unsigned) h->tc);
+    printf("%.*sbvh (%u) {\n", id, SP, (unsigned) h->c);
 
     if(!h->l && !h->r) {
         size_t i;
-        for(i = 0; i < h->tc; i++) 
-            tri_print_internal(&h->tris[i], NULL, indent + 1);
+        for(i = 0; i < h->c; i++)
+            surface_print_internal(&h->surfaces[i], NULL, indent + 1);
     } else {
         bvh_print_internal(h->l, indent + 1);
         bvh_print_internal(h->r, indent + 1);
-    }
-
-    printf("%.*s}\n", id, SP);
+    } printf("%.*s}\n", id, SP);
 }
 
 void bvh_print(BVH* h) {
@@ -436,24 +446,20 @@ int helper_bvh_ray_collides(BVH* h, Ray r) {
 typedef struct Intersection {
     Surface s;
     double t;
-    union {
-        Tri tri;
-        Sphere sphere;
-    };
 } Intersection;
 
 void intersection_print(Intersection* i) {
-    if(i->s == NONE)
+    if(i->s.st == NONE)
         printf("intersection: None\n");
     else
         printf("intersection {\n");
 
-    switch(i->s) {
+    switch(i->s.st) {
         case SPHERE:
-            sphere_print_internal(&i->sphere, NULL, 1);
+            sphere_print_internal(i->s.sphere, NULL, 1);
             break;
         case TRI:
-            tri_print_internal(&i->tri, NULL, 1);
+            tri_print_internal(i->s.tri, NULL, 1);
             break;
         default: return;
     }; 
@@ -462,10 +468,10 @@ void intersection_print(Intersection* i) {
     printf("}\n");
 }
 
-Intersection helper_bvh_intersection(Config c, BVH* h, Ray r, Exclusion e) {
+Intersection helper_bvh_intersection(Config c, BVH* h, Ray r, Surface e) {
     Intersection intrs_a, intrs_b;
     intrs_a = (Intersection) {
-        .s = NONE,
+        .s = (Surface) { .st = NONE },
         .t = c.t_max + 1.
     };
 
@@ -473,12 +479,26 @@ Intersection helper_bvh_intersection(Config c, BVH* h, Ray r, Exclusion e) {
 
     if(!h->l && !h->r) {
         size_t i;
-        for(i = 0; i < h->tc; i++) {
-            double t = tri_intersection(h->tris[i], r, c.t_min, c.t_max);
-            if(t < intrs_a.t && !(e.s == TRI && tri_eq(e.tri, h->tris[i]))) {
-                intrs_a.s = TRI;
-                intrs_a.t = t;
-                intrs_a.tri = h->tris[i];
+        for(i = 0; i < h->c; i++) {
+            double t;
+            switch(h->surfaces[i].st) {
+                case TRI:
+                    t = tri_intersection(*h->surfaces[i].tri, r, c.t_min, c.t_max);
+                    if(t < intrs_a.t && !(e.st == TRI && e.tri == h->surfaces[i].tri)) {
+                        intrs_a.s = h->surfaces[i];
+                        intrs_a.t = t;
+                    }
+
+                    break;
+                case SPHERE: 
+                    t = sphere_intersection(*h->surfaces[i].sphere, r, c.t_min, c.t_max);
+                    if(t < intrs_a.t && !(e.st == SPHERE && e.sphere == h->surfaces[i].sphere)) {
+                        intrs_a.s = h->surfaces[i];
+                        intrs_a.t = t;
+                    }
+
+                    break;
+                default: break;
             }
         }
 
@@ -494,20 +514,20 @@ Intersection helper_bvh_intersection(Config c, BVH* h, Ray r, Exclusion e) {
 //
 // Intersection check
 
-Intersection intersection_check_excl(Scene s, Config c, Ray r, Exclusion e) {
+Intersection intersection_check_excl(Scene s, Config c, Ray r, Surface e) {
     Intersection intrs_a, intrs_b;
     intrs_a = (Intersection) {
-        .s = NONE,
+        .s = (Surface) { .st = NONE },
         .t = c.t_max + 1.
     };
 
     size_t i;
     for(i = 0; i < s.sc; i++) {
         double t = sphere_intersection(s.spheres[i], r, c.t_min, c.t_max);
-        if(t < intrs_a.t && !(e.s == SPHERE && sphere_eq(e.sphere, s.spheres[i]))) {
-            intrs_a.s = SPHERE;
+        if(t < intrs_a.t && !(e.st == SPHERE && e.sphere == &s.spheres[i])) {
+            intrs_a.s.st = SPHERE;
             intrs_a.t = t;
-            intrs_a.sphere = s.spheres[i];
+            intrs_a.s.sphere = &s.spheres[i];
         }
     }
 
@@ -538,24 +558,9 @@ Intersection intersection_check_excl(Scene s, Config c, Ray r, Exclusion e) {
 }
 
 Intersection intersection_check(Scene s, Config c, Ray r) {
-    Exclusion e = (Exclusion) { .s = NONE };
+    Surface e = (Surface) { .st = NONE };
 
     return intersection_check_excl(s, c, r, e);
-}
-
-Exclusion intersection_into_exclusion(Intersection i) {
-    Exclusion e = (Exclusion) { .s = i.s };
-    switch(i.s) {
-        case SPHERE: 
-            e.sphere = i.sphere;
-            break;
-        case TRI:
-            e.tri = i.tri;
-            break;
-        default: break;
-    }
-
-    return e;
 }
 
 #endif /* SCENE_H */
