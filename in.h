@@ -23,19 +23,13 @@ Mesh* mesh_from_raw_vvvnnn(char* name, char* file) {
     Mesh* m = malloc(sizeof *m);
     *m = (Mesh) {
         .name = malloc(strlen(name) + 1),
-        .vertices = calloc(3 * tc, sizeof *(m->vertices)),
-        .vc = 3 * tc,
-        .tris = calloc(tc, sizeof *(m->tris)),
         .tc = tc,
+        .tris = calloc(tc, sizeof *m->tris),
         .next = NULL
     }; strcpy(m->name, name);
 
-    Vertex* a, *b, *c;
+    Vertex a, b, c;
     for(i = 0; i < tc; i++) {
-        a = &(m->vertices[3 * i + 0]);
-        b = &(m->vertices[3 * i + 1]);
-        c = &(m->vertices[3 * i + 2]);
-
         fscanf(f, 
             "%lf %lf %lf\n"
             "%lf %lf %lf\n"
@@ -43,12 +37,12 @@ Mesh* mesh_from_raw_vvvnnn(char* name, char* file) {
             "%lf %lf %lf\n"
             "%lf %lf %lf\n"
             "%lf %lf %lf\n\n",
-            &(a->point.x),  &(a->point.y),  &(a->point.z),
-            &(a->normal.x), &(a->normal.y), &(a->normal.z),
-            &(b->point.x),  &(b->point.y),  &(b->point.z),
-            &(b->normal.x), &(b->normal.y), &(b->normal.z),
-            &(c->point.x),  &(c->point.y),  &(c->point.z),
-            &(c->normal.x), &(c->normal.y), &(c->normal.z)
+            &a.point.x,  &a.point.y,  &a.point.z,
+            &a.normal.x, &a.normal.y, &a.normal.z,
+            &b.point.x,  &b.point.y,  &b.point.z,
+            &b.normal.x, &b.normal.y, &b.normal.z,
+            &c.point.x,  &c.point.y,  &c.point.z,
+            &c.normal.x, &c.normal.y, &c.normal.z
         );
 
         m->tris[i] = tri_vvv(a, b, c);

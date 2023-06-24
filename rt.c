@@ -1,7 +1,7 @@
-#include "lalg.h"
 #include "geom.h"
-#include "in.h"
 #include "buffer.h"
+#include "in.h"
+#include "intrs.h"
 #include "scene.h"
 
 //
@@ -29,9 +29,9 @@ Ray camera_ray(Scene s, size_t h, size_t w, size_t x, size_t y) {
 
 Vec helper_tri_normal(Tri t, Vec pos) {
     Vec a, b, c;
-    a = t.a->point;
-    b = t.b->point;
-    c = t.c->point;
+    a = t.a.point;
+    b = t.b.point;
+    c = t.c.point;
     
     Vec v0, v1, v2;
     v0 = sub_vv(b, a);
@@ -53,14 +53,16 @@ Vec helper_tri_normal(Tri t, Vec pos) {
     u = 1. - v - w;
 
     Vec na, nb, nc;
-    na = mul_vs(t.a->normal, v);
-    nb = mul_vs(t.b->normal, w);
-    nc = mul_vs(t.c->normal, u);
+    na = mul_vs(t.a.normal, v);
+    nb = mul_vs(t.b.normal, w);
+    nc = mul_vs(t.c.normal, u);
 
     return add_vv(add_vv(na, nb), nc);
 }
 
 void intersection_normal(Intersection i, Ray r, Vec* normal, Vec* hit) {
+    assert(i.s.st);
+
     *hit = add_vv(r.origin, mul_vs(r.dir, i.t));
 
     switch(i.s.st) {
@@ -70,7 +72,9 @@ void intersection_normal(Intersection i, Ray r, Vec* normal, Vec* hit) {
         case TRI: 
             *normal = helper_tri_normal(*i.s.tri, *hit);
             break;
-        default: break;
+        case NONE:
+            assert(0);
+            break;
     }
 }
 
@@ -78,7 +82,7 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
     Ray r = camera_ray(s, h, w, x, y);
 
     Intersection intrs = intersection_check(s, c, r);
-    if(intrs.s.st == NONE) return vec_aaa(0.);
+    if(!intrs.s.st) return vec_aaa(0.);
 
     Vec normal, hit;
     intersection_normal(intrs, r, &normal, &hit);
@@ -93,7 +97,7 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
         };
         
         Intersection shadow = intersection_check_excl(s, c, light_ray, intrs.s);
-        if(shadow.s.st == NONE) {
+        if(!shadow.s.st) {
             double temp = dot_vv(normal, light_ray.dir) * l->strength;
             if(temp >= 0.) {
                 Vec refl = sub_vv(r.dir, mul_vs(normal, 2. * dot_vv(normal, r.dir)));
@@ -134,10 +138,11 @@ int main(void) {
     scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
     scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));
     scene_add_sphere(&scene, (Sphere) { .center = vec_abc(0.0, 0.0, 15.0), .radius = 10. });
+    scene_add_sphere(&scene, (Sphere) {
+       .center = vec_abc(8., -8., 6.),
+       .radius = 4. 
+    });
     scene_initialize(&scene);
-
-    vec_print(&scene.tt->minima);
-    vec_print(&scene.tt->maxima);
 
     Config c = (Config) {
         .t_min = 0.01,
@@ -150,7 +155,7 @@ int main(void) {
 
     raytrace(b, scene, c);
 
-    buffer_export_as_ppm(b, "test2.ppm");
+    buffer_export_as_ppm(b, "test.ppm");
 
     printf("Complete...\n");
 

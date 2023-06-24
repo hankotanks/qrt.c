@@ -149,8 +149,8 @@ void vertex_print_internal(Vertex* v, char* name, size_t indent) {
     else
         printf("%.*s vertex {\n", id, SP);
 
-    vec_print_internal(&(v->point), "point", indent + 1);
-    vec_print_internal(&(v->normal), "normal", indent + 1);
+    vec_print_internal(&v->point, "point", indent + 1);
+    vec_print_internal(&v->normal, "normal", indent + 1);
 
     printf("%.*s}\n", id, SP);
 }
@@ -163,17 +163,17 @@ void vertex_print(Vertex* v) {
 // `Tri` declaration
 
 typedef struct Tri {
-    Vertex* a;
-    Vertex* b;
-    Vertex* c;
+    Vertex a;
+    Vertex b;
+    Vertex c;
     Vec centroid;
 } Tri;
 
-Tri tri_vvv(Vertex* a, Vertex* b, Vertex* c) {
+Tri tri_vvv(Vertex a, Vertex b, Vertex c) {
     Vec centroid = (Vec) {
-        .x = (a->point.x + b->point.x + c->point.x) / 3.0,
-        .y = (a->point.y + b->point.y + c->point.y) / 3.0,
-        .z = (a->point.z + b->point.z + c->point.z) / 3.0
+        .x = (a.point.x + b.point.x + c.point.x) / 3.0,
+        .y = (a.point.y + b.point.y + c.point.y) / 3.0,
+        .z = (a.point.z + b.point.z + c.point.z) / 3.0
     };
 
     return (Tri) { a, b, c, centroid };
@@ -187,11 +187,11 @@ void tri_print_internal(Tri* t, char* name, int indent) {
     else
         printf("%.*s tri {\n", id, SP);
 
-    vertex_print_internal(t->a, "a", indent + 1);
-    vertex_print_internal(t->b, "b", indent + 1);
-    vertex_print_internal(t->c, "c", indent + 1);
+    vertex_print_internal(&t->a, "a", indent + 1);
+    vertex_print_internal(&t->b, "b", indent + 1);
+    vertex_print_internal(&t->c, "c", indent + 1);
 
-    vec_print_internal(&(t->centroid), "centroid", indent + 1);
+    vec_print_internal(&t->centroid, "centroid", indent + 1);
 
     printf("%.*s}\n", id, SP);
 }
@@ -201,11 +201,11 @@ void tri_print(Tri* t) {
 }
 
 double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
-    Vec e1 = sub_vv(t.b->point, t.a->point);
-    Vec e2 = sub_vv(t.c->point, t.a->point);
+    Vec e1 = sub_vv(t.b.point, t.a.point);
+    Vec e2 = sub_vv(t.c.point, t.a.point);
 
     Vec p_vec = cross_vv(r.dir, e2);
-    Vec t_vec = sub_vv(r.origin, t.a->point);
+    Vec t_vec = sub_vv(r.origin, t.a.point);
     Vec q_vec = cross_vv(t_vec, e1);
 
     double det = dot_vv(e1, p_vec);
@@ -229,11 +229,6 @@ double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
     return (w > t_max || w < t_min) ? t_max + 1. : w;
 }
 
-/*
-int tri_eq(Tri a, Tri b) {
-    return (a.a == b.a && a.b == b.b && a.c == b.c);
-} */
-
 //
 // `Mesh` declaration
 
@@ -241,9 +236,7 @@ typedef struct Mesh Mesh;
 
 struct Mesh {
     char* name;
-    size_t vc;
     size_t tc;
-    Vertex* vertices;
     Tri* tris;
     Mesh* next;
 };
