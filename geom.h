@@ -36,10 +36,13 @@ void ray_print(Ray* r) {
 //
 // `Sphere` declaration
 
-typedef struct Sphere {
+typedef struct Sphere Sphere;
+
+struct Sphere {
     Vec center;
     double radius;
-} Sphere;
+    Sphere* next;
+};
 
 void sphere_print_internal(Sphere* s, char* name, size_t indent) {
     int id = 4 * (int) indent; 
@@ -89,9 +92,10 @@ double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
     return t_max + 1.;
 }
 
+/*
 int sphere_eq(Sphere a, Sphere b) {
     return a.center.x == b.center.x && a.center.y == b.center.y && a.center.z == b.center.z && a.radius == b.radius;
-}
+} */
 
 //
 // `Light` declaration
@@ -225,9 +229,10 @@ double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
     return (w > t_max || w < t_min) ? t_max + 1. : w;
 }
 
+/*
 int tri_eq(Tri a, Tri b) {
     return (a.a == b.a && a.b == b.b && a.c == b.c);
-}
+} */
 
 //
 // `Mesh` declaration

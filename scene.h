@@ -100,7 +100,6 @@ struct BVH {
 
 typedef struct Scene {
     Camera camera;
-    size_t sc;
     Light* lights;
     Mesh* meshes;
     BVH* tt;
@@ -132,11 +131,20 @@ void scene_add_light(Scene* s, Light l) {
     s->lights = temp;
 }
 
-BVH* bvh(Mesh* meshes);
+void scene_add_sphere(Scene* s, Sphere sphere) {
+    Sphere* temp = malloc(sizeof *s->spheres);
+    /*  */ *temp = sphere;
+
+    if(s->spheres) temp->next = s->spheres;
+
+    s->spheres = temp;
+}
+
+BVH* bvh(Mesh* meshes, Sphere* spheres);
 void bvh_free(BVH* h);
 
 void scene_initialize(Scene* s) {
-    s->tt = bvh(s->meshes);
+    s->tt = bvh(s->meshes, s->spheres);
 }
 
 void scene_free(Scene* s) {
@@ -161,9 +169,13 @@ void scene_free(Scene* s) {
         free(m);
     }
 
+    Sphere* sphere;
+    while(s->spheres) {
+        sphere = s->spheres;
+        s->spheres = s->spheres->next;
 
-    //if(s->lights) free(s->lights);
-    if(s->spheres) free(s->spheres);
+        free(sphere);
+    }
 }
 
 //
@@ -203,44 +215,59 @@ void helper_bvh_extrema(size_t c, Surface* surfaces, Vec* minima, Vec* maxima) {
             }; break;
             default: break;
         }
-       
     }
 }
 
 void bvh_split(BVH* h);
 
-BVH* bvh(Mesh* meshes) {
-    if(!meshes) return NULL;
+BVH* bvh(Mesh* meshes, Sphere* spheres) {
+    assert(meshes || spheres);
 
-    Mesh* curr = meshes;
+    Mesh* curr_mesh = meshes;
 
-    size_t tc = 0, c = 0;
-    while(curr != NULL) {
-        tc += curr->tc;
-        curr = curr->next;
+    size_t tc = 0, sc = 0, c = 0;
+    while(curr_mesh) {
+        tc += curr_mesh->tc;
+        curr_mesh = curr_mesh->next;
     }
-    
-    if(!tc) return NULL;
 
-    Surface* surfaces = malloc(tc * (sizeof *surfaces));
+    Sphere* curr_sphere = spheres;
+    while(curr_sphere) {
+        curr_sphere = curr_sphere->next;
+        ++sc;
+    } assert(tc || sc);
 
-    curr = meshes;
-    while(curr != NULL) {
+    Surface* surfaces = malloc((tc + sc) * (sizeof *surfaces));
+
+    curr_mesh = meshes;
+    while(curr_mesh) {
         size_t n;
-        for(n = 0; n < curr->tc; n++) {
+        for(n = 0; n < curr_mesh->tc; n++) {
             surfaces[c] = (Surface) {
                 .st = TRI,
-                .tri = &curr->tris[n]
+                .tri = &curr_mesh->tris[n]
             };
 
             ++c;
         }
 
-        curr = curr->next;
+        curr_mesh = curr_mesh->next;
+    }
+
+    curr_sphere = spheres;
+    while(curr_sphere) {
+        surfaces[c] = (Surface) {
+            .st = SPHERE,
+            .sphere = curr_sphere
+        };
+
+        curr_sphere = curr_sphere->next;
+
+        ++c;
     }
 
     Vec minima, maxima;
-    helper_bvh_extrema(tc, surfaces, &minima, &maxima);
+    helper_bvh_extrema(tc + sc, surfaces, &minima, &maxima);
 
     BVH* h = malloc(sizeof *h);
     *h = (BVH) {
@@ -248,7 +275,7 @@ BVH* bvh(Mesh* meshes) {
         .r = NULL,
         .minima = minima,
         .maxima = maxima,
-        .c = tc,
+        .c = tc + sc,
         .surfaces = surfaces
     };
     
@@ -320,7 +347,7 @@ void bvh_split(BVH* h) {
         .minima = h->minima,
         .maxima = h->maxima,
         .c = 0,
-        .surfaces = malloc(h->c * (sizeof *(l->surfaces)))
+        .surfaces = malloc(h->c * (sizeof *l->surfaces))
     };
 
     BVH* r = malloc(sizeof *r);
@@ -330,7 +357,7 @@ void bvh_split(BVH* h) {
         .minima = h->minima,
         .maxima = h->maxima,
         .c = 0,
-        .surfaces = malloc(h->c * (sizeof *(r->surfaces)))
+        .surfaces = malloc(h->c * (sizeof *r->surfaces))
     };
 
     if(dx >= dy && dx >= dz) { // dx
@@ -490,7 +517,7 @@ Intersection helper_bvh_intersection(Config c, BVH* h, Ray r, Surface e) {
                     }
 
                     break;
-                case SPHERE: 
+                case SPHERE:
                     t = sphere_intersection(*h->surfaces[i].sphere, r, c.t_min, c.t_max);
                     if(t < intrs_a.t && !(e.st == SPHERE && e.sphere == h->surfaces[i].sphere)) {
                         intrs_a.s = h->surfaces[i];
@@ -521,6 +548,7 @@ Intersection intersection_check_excl(Scene s, Config c, Ray r, Surface e) {
         .t = c.t_max + 1.
     };
 
+    /*
     size_t i;
     for(i = 0; i < s.sc; i++) {
         double t = sphere_intersection(s.spheres[i], r, c.t_min, c.t_max);
@@ -529,7 +557,7 @@ Intersection intersection_check_excl(Scene s, Config c, Ray r, Surface e) {
             intrs_a.t = t;
             intrs_a.s.sphere = &s.spheres[i];
         }
-    }
+    }*/
 
 #if 0
     Intersection intrs_c = intrs_a;
@@ -554,7 +582,7 @@ Intersection intersection_check_excl(Scene s, Config c, Ray r, Surface e) {
 
     intrs_b = helper_bvh_intersection(c, s.tt, r, e);
 
-    return (intrs_a.t < intrs_b.t) ? intrs_a : intrs_b;
+    return intrs_b; //(intrs_a.t < intrs_b.t) ? intrs_a : intrs_b;
 }
 
 Intersection intersection_check(Scene s, Config c, Ray r) {

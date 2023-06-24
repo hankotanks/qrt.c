@@ -133,13 +133,11 @@ int main(void) {
     scene_add_mesh(&scene, mesh_from_raw_vvvnnn("teapot", "./models/uteapot_vvvnnn"));
     scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
     scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));
-    //scene_add_sphere(&scene, sphere_new(vec_abc(0., 0., 15.), 10.));
+    scene_add_sphere(&scene, (Sphere) { .center = vec_abc(0.0, 0.0, 15.0), .radius = 10. });
     scene_initialize(&scene);
 
-    Sphere sphere = (Sphere) { .center = vec_abc(0.0, 0.0, 15.0), .radius = 10. };
-
-    scene.sc++;
-    scene.spheres = &sphere;
+    vec_print(&scene.tt->minima);
+    vec_print(&scene.tt->maxima);
 
     Config c = (Config) {
         .t_min = 0.01,
