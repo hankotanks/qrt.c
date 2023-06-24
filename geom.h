@@ -96,10 +96,17 @@ int sphere_eq(Sphere a, Sphere b) {
 //
 // `Light` declaration
 
-typedef struct Light {
+typedef struct Light Light;
+
+struct Light {
     Vec pos;
     double strength;
-} Light;
+    Light* next;
+};
+
+Light light_new(Vec pos, double strength) {
+    return (Light) { .pos = pos, .strength = strength, .next = NULL };
+}
 
 void light_print_internal(Light* l, char* name, size_t indent) {
     int id = 4 * (int) indent;

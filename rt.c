@@ -84,17 +84,17 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
     intersection_normal(intrs, r, &normal, &hit);
 
     double light = c.ambience;
-    
-    size_t i;
-    for(i = 0; i < s.lc && intrs.s != NONE; i++) {
+
+    Light* l = s.lights;
+    while(l) {
         Ray light_ray = (Ray) {
             .origin = hit,
-            .dir = norm_v(sub_vv(s.lights[i].pos, hit))
+            .dir = norm_v(sub_vv(l->pos, hit))
         };
         
         Intersection shadow = intersection_check_excl(s, c, light_ray, intersection_into_exclusion(intrs));
         if(shadow.s == NONE) {
-            double temp = dot_vv(normal, light_ray.dir) * s.lights[i].strength;
+            double temp = dot_vv(normal, light_ray.dir) * l->strength;
             if(temp >= 0.) {
                 Vec refl = sub_vv(r.dir, mul_vs(normal, 2. * dot_vv(normal, r.dir)));
 
@@ -103,6 +103,8 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
                 light += temp;
             }
         }
+
+        l = l->next;
     }
 
     return vec_aaa(MAX(0.0, MIN(1., light)));
@@ -129,15 +131,14 @@ int main(void) {
     Scene scene = scene_new(camera);
 
     scene_add_mesh(&scene, mesh_from_raw_vvvnnn("teapot", "./models/uteapot_vvvnnn"));
+    scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
+    scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));
+    //scene_add_sphere(&scene, sphere_new(vec_abc(0., 0., 15.), 10.));
     scene_initialize(&scene);
-
-    Light l = (Light) { .pos = vec_abc(0., 10., -10.), .strength = 1. };
 
     Sphere sphere = (Sphere) { .center = vec_abc(0.0, 0.0, 15.0), .radius = 10. };
 
-    scene.lc++;
     scene.sc++;
-    scene.lights = &l;
     scene.spheres = &sphere;
 
     Config c = (Config) {

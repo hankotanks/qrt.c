@@ -64,7 +64,6 @@ struct BVH {
 
 typedef struct Scene {
     Camera camera;
-    size_t lc;
     size_t sc;
     Light* lights;
     Mesh* meshes;
@@ -83,14 +82,18 @@ Scene scene_new(Camera c) {
 }
 
 void scene_add_mesh(Scene* s, Mesh* m) {
-    if(!s->meshes)
-        s->meshes = m;
-    else {
-        Mesh* curr = s->meshes;
-        while(curr->next) curr = curr->next;
+    if(s->meshes) m->next = s->meshes;
 
-        curr->next = m;
-    }
+    s->meshes = m;
+}
+
+void scene_add_light(Scene* s, Light l) {
+    Light* temp = malloc(sizeof *(s->lights));
+    /* */ *temp = l;
+
+    if(s->lights) temp->next = s->lights;
+
+    s->lights = temp;
 }
 
 BVH* bvh(Mesh* meshes);
@@ -103,18 +106,27 @@ void scene_initialize(Scene* s) {
 void scene_free(Scene* s) {
     if(s->tt) bvh_free(s->tt);
 
-    Mesh* temp;
-    while(s->meshes) {
-        temp = s->meshes;
-        s->meshes = s->meshes->next;
+    Light* l;
+    while(s->lights) {
+        l = s->lights;
+        s->lights = s->lights->next;
 
-        free(temp->name);
-        free(temp->vertices);
-        free(temp->tris);
-        free(temp);
+        free(l);
     }
 
-    if(s->lights) free(s->lights);
+    Mesh* m;
+    while(s->meshes) {
+        m = s->meshes;
+        s->meshes = s->meshes->next;
+
+        free(m->name);
+        free(m->vertices);
+        free(m->tris);
+        free(m);
+    }
+
+
+    //if(s->lights) free(s->lights);
     if(s->spheres) free(s->spheres);
 }
 
