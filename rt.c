@@ -116,7 +116,7 @@ int main(void) {
     }; strcpy(muddy_green_temp.name, "MuddyGreen");
     Material* muddy_green = scene_add_material(&scene, muddy_green_temp);
 
-    scene_add_mesh(&scene, mesh_from_raw_vvvnnn("teapot", "./models/uteapot_vvvnnn", shiny_orange));
+    scene_add_mesh(&scene, mesh_from_raw("teapot", "./models/uteapot", shiny_orange));
 
     scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
     scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));

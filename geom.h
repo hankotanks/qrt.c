@@ -179,7 +179,7 @@ typedef struct Tri {
     Material* material;
 } Tri;
 
-Tri tri_vvv(Vertex a, Vertex b, Vertex c, Material* material) {
+Tri tri_new(Vertex a, Vertex b, Vertex c, Material* material) {
     Vec centroid = (Vec) {
         .x = (a.point.x + b.point.x + c.point.x) / 3.0,
         .y = (a.point.y + b.point.y + c.point.y) / 3.0,
