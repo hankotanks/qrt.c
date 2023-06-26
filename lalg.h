@@ -5,7 +5,10 @@
 #include<stdio.h>
 #include<math.h>
 
-#define SP "                                                                "
+#define PADDING "                                                                "
+
+#define MIN(i, j) (((i) < (j)) ? (i) : (j))
+#define MAX(i, j) (((i) > (j)) ? (i) : (j))
 
 //
 // `Vec` declaration
@@ -30,12 +33,12 @@ void vec_print_internal(Vec* v, char* name, size_t indent) {
     if(name)
         printf(
             "%.*s%s (vec) { %.4lf, %.4lf, %.4lf }\n", 
-            id, SP, name, v->x, v->y, v->z
+            id, PADDING, name, v->x, v->y, v->z
         );
     else
         printf(
             "%.*svec { %.4lf, %.4lf, %.4lf }\n", 
-            id, SP, v->x, v->y, v->z
+            id, PADDING, v->x, v->y, v->z
         );
 }
 
@@ -69,20 +72,20 @@ void mat_print_internal(Mat* m, char* name, size_t indent) {
     int id = 4 * (int) indent;
 
     if(name)
-        printf("%.*s%s (mat) {\n", id, SP, name);
+        printf("%.*s%s (mat) {\n", id, PADDING, name);
     else
-        printf("%.*s mat {\n", id, SP);
+        printf("%.*s mat {\n", id, PADDING);
 
     printf(
         "%.*s    %.4lf, %.4lf, %.4lf, %.4lf,\n"
         "%.*s    %.4lf, %.4lf, %.4lf, %.4lf,\n"
         "%.*s    %.4lf, %.4lf, %.4lf, %.4lf,\n"
         "%.*s    %.4lf, %.4lf, %.4lf, %.4lf\n%.*s}\n",
-        id, SP, m->vs[0],  m->vs[1],  m->vs[2],  m->vs[3], 
-        id, SP, m->vs[4],  m->vs[5],  m->vs[6],  m->vs[7], 
-        id, SP, m->vs[8],  m->vs[9],  m->vs[10], m->vs[11], 
-        id, SP, m->vs[12], m->vs[13], m->vs[14], m->vs[15],
-        id, SP
+        id, PADDING, m->vs[0],  m->vs[1],  m->vs[2],  m->vs[3], 
+        id, PADDING, m->vs[4],  m->vs[5],  m->vs[6],  m->vs[7], 
+        id, PADDING, m->vs[8],  m->vs[9],  m->vs[10], m->vs[11], 
+        id, PADDING, m->vs[12], m->vs[13], m->vs[14], m->vs[15],
+        id, PADDING
     );
 }
 
@@ -133,6 +136,26 @@ Mat mul_mm(Mat m, Mat n) {
 
 Vec inv_v(Vec v) {
     return (Vec) { 1. / v.x, 1. / v.y, 1. / v.z };
+}
+
+Vec min_v(Vec v, double min) {
+    return (Vec) {
+        MAX(min, v.x),
+        MAX(min, v.y),
+        MAX(min, v.z)
+    };
+}
+
+Vec max_v(Vec v, double max) {
+    return (Vec) {
+        MIN(max, v.x),
+        MIN(max, v.y),
+        MIN(max, v.z)
+    };
+}
+
+Vec clamp_v(Vec v, double min, double max) {
+    return max_v(min_v(v, min), max);
 }
 
 double dot_vv(Vec a, Vec b) {

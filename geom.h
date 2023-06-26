@@ -3,8 +3,6 @@
 
 #include "lalg.h"
 
-#define MIN(i, j) (((i) < (j)) ? (i) : (j))
-
 #define EPS_TRI 0.0000001
 
 //
@@ -19,19 +17,34 @@ void ray_print_internal(Ray* r, char* name, size_t indent) {
     int id = 4 * (int) indent; 
 
     if(name) 
-        printf("%.*s%s (ray) {\n", id, SP, name);
+        printf("%.*s%s (ray) {\n", id, PADDING, name);
     else
-        printf("%.*s ray {\n", id, SP);
+        printf("%.*s ray {\n", id, PADDING);
 
     vec_print_internal(&(r->origin), "origin", indent + 1);
     vec_print_internal(&(r->dir), "dir", indent + 1);
 
-    printf("%.*s}\n", id, SP);
+    printf("%.*s}\n", id, PADDING);
 }
 
 void ray_print(Ray* r) {
     ray_print_internal(r, NULL, 0);
 }
+
+//
+// `Material` declaration
+
+typedef struct Material Material;
+
+struct Material {
+    char* name;
+    Vec color_ambient;
+    Vec color_diffuse;
+    Vec color_spec;
+    double luster;
+    double metallicity;
+    Material* next;
+};
 
 //
 // `Sphere` declaration
@@ -41,6 +54,7 @@ typedef struct Sphere Sphere;
 struct Sphere {
     Vec center;
     double radius;
+    Material* material;
     Sphere* next;
 };
 
@@ -48,16 +62,16 @@ void sphere_print_internal(Sphere* s, char* name, size_t indent) {
     int id = 4 * (int) indent; 
 
     if(name)
-        printf("%.*s%s (sphere) {\n", id, SP, name);
+        printf("%.*s%s (sphere) {\n", id, PADDING, name);
     else 
-        printf("%.*s sphere {\n", id, SP);
+        printf("%.*s sphere {\n", id, PADDING);
 
     vec_print_internal(&(s->center), "center", indent + 1);
 
     printf(
         "%.*s    radius: %.4lf\n%.*s}\n", 
-        id, SP, s->radius, 
-        id, SP
+        id, PADDING, s->radius, 
+        id, PADDING
     );
 }
 
@@ -92,11 +106,6 @@ double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
     return t_max + 1.;
 }
 
-/*
-int sphere_eq(Sphere a, Sphere b) {
-    return a.center.x == b.center.x && a.center.y == b.center.y && a.center.z == b.center.z && a.radius == b.radius;
-} */
-
 //
 // `Light` declaration
 
@@ -116,16 +125,16 @@ void light_print_internal(Light* l, char* name, size_t indent) {
     int id = 4 * (int) indent;
 
     if(name)
-        printf("%.*s%s (light) {\n", id, SP, name);
+        printf("%.*s%s (light) {\n", id, PADDING, name);
     else
-        printf("%.*s light {\n", id, SP);
+        printf("%.*s light {\n", id, PADDING);
 
     vec_print_internal(&(l->pos), "pos", indent + 1);
     
     printf(
         "%.*s    strength: %lf\n%.*s}\n", 
-        id, SP, l->strength,
-        id, SP
+        id, PADDING, l->strength,
+        id, PADDING
     );
 }
 
@@ -145,14 +154,14 @@ void vertex_print_internal(Vertex* v, char* name, size_t indent) {
     int id = 4 * (int) indent;
 
     if(name)
-        printf("%.*s%s (vertex) {\n", id, SP, name);
+        printf("%.*s%s (vertex) {\n", id, PADDING, name);
     else
-        printf("%.*s vertex {\n", id, SP);
+        printf("%.*s vertex {\n", id, PADDING);
 
     vec_print_internal(&v->point, "point", indent + 1);
     vec_print_internal(&v->normal, "normal", indent + 1);
 
-    printf("%.*s}\n", id, SP);
+    printf("%.*s}\n", id, PADDING);
 }
 
 void vertex_print(Vertex* v) {
@@ -167,25 +176,26 @@ typedef struct Tri {
     Vertex b;
     Vertex c;
     Vec centroid;
+    Material* material;
 } Tri;
 
-Tri tri_vvv(Vertex a, Vertex b, Vertex c) {
+Tri tri_vvv(Vertex a, Vertex b, Vertex c, Material* material) {
     Vec centroid = (Vec) {
         .x = (a.point.x + b.point.x + c.point.x) / 3.0,
         .y = (a.point.y + b.point.y + c.point.y) / 3.0,
         .z = (a.point.z + b.point.z + c.point.z) / 3.0
     };
 
-    return (Tri) { a, b, c, centroid };
+    return (Tri) { a, b, c, centroid, material };
 }
 
 void tri_print_internal(Tri* t, char* name, int indent) {
     int id = 4 * (int) indent;
 
     if(name)
-        printf("%.*s%s (tri) {\n", id, SP, name);
+        printf("%.*s%s (tri) {\n", id, PADDING, name);
     else
-        printf("%.*s tri {\n", id, SP);
+        printf("%.*s tri {\n", id, PADDING);
 
     vertex_print_internal(&t->a, "a", indent + 1);
     vertex_print_internal(&t->b, "b", indent + 1);
@@ -193,7 +203,7 @@ void tri_print_internal(Tri* t, char* name, int indent) {
 
     vec_print_internal(&t->centroid, "centroid", indent + 1);
 
-    printf("%.*s}\n", id, SP);
+    printf("%.*s}\n", id, PADDING);
 }
 
 void tri_print(Tri* t) {

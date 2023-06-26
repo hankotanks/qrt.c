@@ -14,7 +14,7 @@ void size_t_read(FILE* f, size_t* val) {
     *val = (size_t) i;
 }
 
-Mesh* mesh_from_raw_vvvnnn(char* name, char* file) {
+Mesh* mesh_from_raw_vvvnnn(char* name, char* file, Material* material) {
     FILE* f = fopen(file, "r");
 
     size_t tc, i;
@@ -45,7 +45,7 @@ Mesh* mesh_from_raw_vvvnnn(char* name, char* file) {
             &c.normal.x, &c.normal.y, &c.normal.z
         );
 
-        m->tris[i] = tri_vvv(a, b, c);
+        m->tris[i] = tri_vvv(a, b, c, material);
     }
 
     fclose(f);

@@ -16,21 +16,6 @@ typedef struct Camera {
 } Camera;
 
 //
-// `Material` declaration
-
-typedef struct Material Material;
-
-struct Material {
-    char* name;
-    Vec color_ambient;
-    Vec color_diffuse;
-    Vec color_spec;
-    double luster;
-    double metallicity;
-    Material* next;
-};
-
-//
 // `Config` declaration
 
 typedef struct Config {
@@ -46,6 +31,7 @@ typedef struct Config {
 typedef struct Scene {
     Camera camera;
     Light* lights;
+    Material* materials;
     Mesh* meshes;
     BVH* tt;
     Sphere* spheres;
@@ -55,6 +41,7 @@ Scene scene_new(Camera c) {
     return (Scene) {
         .camera = c,
         .lights = NULL,
+        .materials = NULL,
         .meshes = NULL,
         .tt = NULL,
         .spheres = NULL
@@ -67,22 +54,37 @@ void scene_add_mesh(Scene* s, Mesh* m) {
     s->meshes = m;
 }
 
-void scene_add_light(Scene* s, Light l) {
+Light* scene_add_light(Scene* s, Light l) {
     Light* temp = malloc(sizeof *(s->lights));
     /* */ *temp = l;
 
     if(s->lights) temp->next = s->lights;
 
     s->lights = temp;
+
+    return s->lights;
 }
 
-void scene_add_sphere(Scene* s, Sphere sphere) {
+Material* scene_add_material(Scene* s, Material material) {
+    Material* temp = malloc(sizeof *s->materials);
+    /*     */*temp = material;
+
+    if(s->materials) temp->next = s->materials;
+
+    s->materials = temp;
+
+    return s->materials;
+}
+
+Sphere* scene_add_sphere(Scene* s, Sphere sphere) {
     Sphere* temp = malloc(sizeof *s->spheres);
     /*  */ *temp = sphere;
 
     if(s->spheres) temp->next = s->spheres;
 
     s->spheres = temp;
+
+    return s->spheres;
 }
 
 void scene_initialize(Scene* s) {
@@ -98,6 +100,15 @@ void scene_free(Scene* s) {
         s->lights = s->lights->next;
 
         free(l);
+    }
+
+    Material* material;
+    while(s->materials) {
+        material = s->materials;
+        s->materials = s->materials->next;
+
+        free(material->name);
+        free(material);
     }
 
     Mesh* m;

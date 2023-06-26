@@ -6,9 +6,6 @@
 
 #include "geom.h"
 
-#define MIN(i, j) (((i) < (j)) ? (i) : (j))
-#define MAX(i, j) (((i) > (j)) ? (i) : (j))
-
 #define EPS_BVH 0.2
 
 //
@@ -44,9 +41,9 @@ void surface_print_internal(Surface* s, char* name, size_t indent) {
     int id = 4 * (int) indent;
 
     if(name)
-        printf("%.*s%s (surface) {\n", id, SP, name);
+        printf("%.*s%s (surface) {\n", id, PADDING, name);
     else 
-        printf("%.*s surface {\n", id, SP);
+        printf("%.*s surface {\n", id, PADDING);
 
     switch(s->st) {
         case TRI:
@@ -56,8 +53,8 @@ void surface_print_internal(Surface* s, char* name, size_t indent) {
             sphere_print_internal(s->sphere, NULL, indent + 1);
             break;
         case NONE: 
-            printf("%.*s`NONE`\n", id + 4, SP);
-    } printf("%.*s}\n", id, SP);
+            printf("%.*s`NONE`\n", id + 4, PADDING);
+    } printf("%.*s}\n", id, PADDING);
 }
 
 void surface_print(Surface* s) {
@@ -355,7 +352,7 @@ void bvh_split(BVH* h) {
 void bvh_print_internal(BVH* h, size_t indent) {
     int id = 4 * (int) indent;
 
-    printf("%.*sbvh (%u) {\n", id, SP, (unsigned) h->c);
+    printf("%.*sbvh (%u) {\n", id, PADDING, (unsigned) h->c);
 
     if(!h->l && !h->r) {
         size_t i;
@@ -364,7 +361,7 @@ void bvh_print_internal(BVH* h, size_t indent) {
     } else {
         bvh_print_internal(h->l, indent + 1);
         bvh_print_internal(h->r, indent + 1);
-    } printf("%.*s}\n", id, SP);
+    } printf("%.*s}\n", id, PADDING);
 }
 
 void bvh_print(BVH* h) {
@@ -392,6 +389,74 @@ void intersection_print(Intersection* i) {
         case NONE: 
             printf("    `NONE`\n");
     }; printf("    t: %lf\n}\n", i->t);
+}
+
+Vec helper_intersection_tri_normal(Tri t, Vec pos) {
+    Vec a, b, c;
+    a = t.a.point;
+    b = t.b.point;
+    c = t.c.point;
+    
+    Vec v0, v1, v2;
+    v0 = sub_vv(b, a);
+    v1 = sub_vv(c, a);
+    v2 = sub_vv(pos, a);
+
+    double d00, d01, d11, d20, d21;
+    d00 = dot_vv(v0, v0);
+    d01 = dot_vv(v0, v1);
+    d11 = dot_vv(v1, v1);
+    d20 = dot_vv(v2, v0);
+    d21 = dot_vv(v2, v1);
+    
+    double denom = d00 * d11 - d01 * d01;
+
+    double v, w, u;
+    v = (d11 * d20 - d01 * d21) / denom;
+    w = (d00 * d21 - d01 * d20) / denom;
+    u = 1. - v - w;
+
+    Vec na, nb, nc;
+    na = mul_vs(t.a.normal, v);
+    nb = mul_vs(t.b.normal, w);
+    nc = mul_vs(t.c.normal, u);
+
+    return add_vv(add_vv(na, nb), nc);
+}
+
+void intersection_normal(Intersection i, Ray r, Vec* normal, Vec* hit) {
+    assert(i.s.st);
+
+    *hit = add_vv(r.origin, mul_vs(r.dir, i.t));
+
+    switch(i.s.st) {
+        case SPHERE: 
+            *normal = norm_v(sub_vv(*hit, i.s.sphere->center));
+            break;
+        case TRI: 
+            *normal = helper_intersection_tri_normal(*i.s.tri, *hit);
+            break;
+        case NONE:
+            assert(0);
+    }
+}
+
+Material* intersection_material(Intersection i) {
+    assert(i.s.st);
+
+    Material* material;
+    switch(i.s.st) {
+        case SPHERE:
+            material = i.s.sphere->material;
+            break;
+        case TRI:
+            material = i.s.tri->material;
+            break;
+        case NONE:
+            assert(0);
+    }
+
+    return material;
 }
 
 Intersection helper_bvh_intersection(BVH* h, Ray r, Surface e, double t_min, double t_max) {

@@ -1,3 +1,5 @@
+#include<string.h>
+
 #include "geom.h"
 #include "buffer.h"
 #include "in.h"
@@ -27,57 +29,6 @@ Ray camera_ray(Scene s, size_t h, size_t w, size_t x, size_t y) {
     };
 }
 
-Vec helper_tri_normal(Tri t, Vec pos) {
-    Vec a, b, c;
-    a = t.a.point;
-    b = t.b.point;
-    c = t.c.point;
-    
-    Vec v0, v1, v2;
-    v0 = sub_vv(b, a);
-    v1 = sub_vv(c, a);
-    v2 = sub_vv(pos, a);
-
-    double d00, d01, d11, d20, d21;
-    d00 = dot_vv(v0, v0);
-    d01 = dot_vv(v0, v1);
-    d11 = dot_vv(v1, v1);
-    d20 = dot_vv(v2, v0);
-    d21 = dot_vv(v2, v1);
-    
-    double denom = d00 * d11 - d01 * d01;
-
-    double v, w, u;
-    v = (d11 * d20 - d01 * d21) / denom;
-    w = (d00 * d21 - d01 * d20) / denom;
-    u = 1. - v - w;
-
-    Vec na, nb, nc;
-    na = mul_vs(t.a.normal, v);
-    nb = mul_vs(t.b.normal, w);
-    nc = mul_vs(t.c.normal, u);
-
-    return add_vv(add_vv(na, nb), nc);
-}
-
-void intersection_normal(Intersection i, Ray r, Vec* normal, Vec* hit) {
-    assert(i.s.st);
-
-    *hit = add_vv(r.origin, mul_vs(r.dir, i.t));
-
-    switch(i.s.st) {
-        case SPHERE: 
-            *normal = norm_v(sub_vv(*hit, i.s.sphere->center));
-            break;
-        case TRI: 
-            *normal = helper_tri_normal(*i.s.tri, *hit);
-            break;
-        case NONE:
-            assert(0);
-            break;
-    }
-}
-
 Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
     Ray r = camera_ray(s, h, w, x, y);
 
@@ -87,10 +38,10 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
     Vec normal, hit;
     intersection_normal(intrs, r, &normal, &hit);
 
-    double light = c.ambience;
+    Material* material = intersection_material(intrs);
 
-    Light* l = s.lights;
-    while(l) {
+    Vec pixel_color = mul_vs(material->color_ambient, c.ambience);
+    Light* l = s.lights; while(l) {
         Ray light_ray = (Ray) {
             .origin = hit,
             .dir = norm_v(sub_vv(l->pos, hit))
@@ -98,20 +49,21 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
         
         Intersection shadow = intersection_check_excl(s, c, light_ray, intrs.s);
         if(!shadow.s.st) {
-            double temp = dot_vv(normal, light_ray.dir) * l->strength;
-            if(temp >= 0.) {
-                Vec refl = sub_vv(r.dir, mul_vs(normal, 2. * dot_vv(normal, r.dir)));
+            double diffuse = MAX(0., dot_vv(normal, light_ray.dir) * l->strength);
 
-                double spec = dot_vv(refl, light_ray.dir);
-                light += MAX(0., 0.9 * pow(spec, 100.));
-                light += temp;
-            }
+            pixel_color = add_vv(pixel_color, mul_vs(material->color_diffuse, diffuse));
+
+            Vec refl = sub_vv(r.dir, mul_vs(normal, 2. * dot_vv(normal, r.dir)));
+
+            double spec = MAX(0., material->luster * pow(dot_vv(refl, light_ray.dir), material->metallicity));
+
+            pixel_color = add_vv(pixel_color, mul_vs(material->color_spec, spec));
         }
 
         l = l->next;
     }
 
-    return vec_aaa(MAX(0.0, MIN(1., light)));
+    return clamp_v(pixel_color, 0., 1.);
 }
 
 void raytrace(Buffer b, Scene s, Config c) {
@@ -130,18 +82,57 @@ void raytrace(Buffer b, Scene s, Config c) {
 // Main function
 
 int main(void) {
-    Camera camera = (Camera) { .pos = vec_abc(0., 5., -10.0), .at = vec_aaa(0.) };
+    Camera camera = (Camera) { .pos = vec_abc(0., 10., -15.0), .at = vec_aaa(0.) };
 
     Scene scene = scene_new(camera);
 
-    scene_add_mesh(&scene, mesh_from_raw_vvvnnn("teapot", "./models/uteapot_vvvnnn"));
+    Material shiny_orange_temp = (Material) {
+        .name = malloc(strlen("ShinyOrange") + 1),
+        .color_ambient = vec_abc(1., 0.4, 0.),
+        .color_diffuse = vec_abc(1., 0.4, 0.),
+        .color_spec = vec_abc(1., 0.4, 0.),
+        .luster = 1.,
+        .metallicity = 125.
+    }; strcpy(shiny_orange_temp.name, "ShinyOrange");
+    Material* shiny_orange = scene_add_material(&scene, shiny_orange_temp);
+
+    Material blue_temp = (Material) {
+        .name = malloc(strlen("Blue") + 1),
+        .color_ambient = vec_abc(0.2, 0.2, 1.),
+        .color_diffuse = vec_abc(0.2, 0.2, 1.),
+        .color_spec = vec_abc(0.2, 0.2, 1.),
+        .luster = 0.5,
+        .metallicity = 50.
+    }; strcpy(blue_temp.name, "Blue");
+    Material* blue = scene_add_material(&scene, blue_temp);
+
+    Material muddy_green_temp = (Material) {
+        .name = malloc(strlen("MuddyGreen") + 1),
+        .color_ambient = vec_abc(0.2, 0.4, 0.),
+        .color_diffuse = vec_abc(0.2, 0.4, 0.),
+        .color_spec = vec_abc(0.2, 0.4, 0.),
+        .luster = 1.,
+        .metallicity = 75.,
+    }; strcpy(muddy_green_temp.name, "MuddyGreen");
+    Material* muddy_green = scene_add_material(&scene, muddy_green_temp);
+
+    scene_add_mesh(&scene, mesh_from_raw_vvvnnn("teapot", "./models/uteapot_vvvnnn", shiny_orange));
+
     scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
     scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));
-    scene_add_sphere(&scene, (Sphere) { .center = vec_abc(0.0, 0.0, 15.0), .radius = 10. });
+
+    scene_add_sphere(&scene, (Sphere) { 
+        .center = vec_abc(0.0, 0.0, 15.0), 
+        .radius = 10.,
+        .material = blue 
+    } );
+
     scene_add_sphere(&scene, (Sphere) {
        .center = vec_abc(8., -8., 6.),
-       .radius = 4. 
-    });
+       .radius = 4.,
+       .material = muddy_green
+    } );
+
     scene_initialize(&scene);
 
     Config c = (Config) {
@@ -160,6 +151,7 @@ int main(void) {
     printf("Complete...\n");
 
     scene_free(&scene);
+
     buffer_free(&b);
 
     return 0;
@@ -168,14 +160,20 @@ int main(void) {
 /*
     NEXT STEPS:
     + finalize an API
-    - implement API & associated new features (Mesh as SLL, etc)
+    + implement API & associated new features (Mesh as SLL, etc)
     - Write parser for MTL and OBJ files
     - Mesh creation should specify a material name to use
     - Add a list of Material objects to the Scene
         - Should it be a member of Scene or Config?
-    - Should Spheres and Lights also be SLL?
-        - Or should Spheres occupy the BVH
+    + Should Spheres and Lights also be SLL?
+        + Or should Spheres occupy the BVH
 */
+
+/*
+    NEXT STEPS:
+    - Add `Material*` member to Sphere & Tri
+    - Add `Material* mats` to Scene
+ */
 
 /*
 
