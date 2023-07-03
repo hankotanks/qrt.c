@@ -81,7 +81,9 @@ void raytrace(Buffer b, Scene s, Config c) {
 //
 // Main function
 
-int main(void) {
+#if 01
+
+int main_c(void) {
     Camera camera = (Camera) { .pos = vec_abc(0., 10., -15.0), .at = vec_aaa(0.) };
 
     Scene scene = scene_new(camera);
@@ -115,8 +117,8 @@ int main(void) {
         .metallicity = 75.,
     }; strcpy(muddy_green_temp.name, "MuddyGreen");
     Material* muddy_green = scene_add_material(&scene, muddy_green_temp);
-
-    scene_add_mesh(&scene, mesh_from_raw("teapot", "./models/uteapot", shiny_orange));
+    
+    scene_add_mesh(&scene, mesh_from_raw("teapot", "C:/Users/hank/Documents/projects/rt.c/models/uteapot", shiny_orange));
 
     scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
     scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));
@@ -141,7 +143,7 @@ int main(void) {
         .fov = 1.570796,
         .ambience = 0.2
     };
-
+    
     Buffer b = buffer_wh(640, 360);
 
     raytrace(b, scene, c);
@@ -152,7 +154,7 @@ int main(void) {
 
     scene_free(&scene);
 
-    buffer_free(&b);
+    //buffer_free(&b);
 
     return 0;
 }
@@ -204,3 +206,5 @@ int main(void) {
 }
 
 */
+
+#endif
