@@ -40,12 +40,14 @@ int main(void) {
     }; strcpy(muddy_green_temp.name, "MuddyGreen");
     Material* muddy_green = scene_add_material(&scene, muddy_green_temp);
     
-    scene_add_mesh(&scene, mesh_from_raw("teapot", "C:/Users/hank/Documents/projects/rt.c/models/uteapot", shiny_orange));
+    Mesh* teapot = mesh_from_raw("teapot", "C:/Users/hank/Documents/projects/rt.c/models/uteapot", shiny_orange);
+    mesh_transform(teapot, transform_rotate(Z, 1.570796));
 
+    scene_add_mesh(&scene, teapot);
     scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
     scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));
 
-    scene_add_sphere(&scene, (Sphere) { 
+    scene_add_sphere(&scene, (Sphere) {
         .center = vec_abc(0.0, 0.0, 15.0), 
         .radius = 10.,
         .material = blue 

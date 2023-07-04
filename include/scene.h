@@ -30,20 +30,20 @@ typedef struct Config {
 
 typedef struct Scene {
     Camera camera;
-    Light* lights;
     Material* materials;
-    Mesh* meshes;
     BVH* tt;
-    Sphere* spheres;
+    Light* lights;
+    Mesh* meshes;
+    Sphere* spheres;    
 } Scene;
 
 Scene scene_new(Camera c) {
     return (Scene) {
         .camera = c,
-        .lights = NULL,
         .materials = NULL,
-        .meshes = NULL,
         .tt = NULL,
+        .lights = NULL,
+        .meshes = NULL,
         .spheres = NULL
     };
 }
@@ -92,6 +92,15 @@ void scene_initialize(Scene* s) {
 }
 
 void scene_free(Scene* s) {
+    Material* material;
+    while(s->materials) {
+        material = s->materials;
+        s->materials = s->materials->next;
+
+        free(material->name);
+        free(material);
+    }
+
     if(s->tt) bvh_free(s->tt);
 
     Light* l;
@@ -100,15 +109,6 @@ void scene_free(Scene* s) {
         s->lights = s->lights->next;
 
         free(l);
-    }
-
-    Material* material;
-    while(s->materials) {
-        material = s->materials;
-        s->materials = s->materials->next;
-
-        free(material->name);
-        free(material);
     }
 
     Mesh* m;

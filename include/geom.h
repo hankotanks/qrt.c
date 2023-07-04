@@ -179,12 +179,16 @@ typedef struct Tri {
     Material* material;
 } Tri;
 
-Tri tri_new(Vertex a, Vertex b, Vertex c, Material* material) {
-    Vec centroid = (Vec) {
+Vec helper_tri_centroid(Vertex a, Vertex b, Vertex c) {
+    return (Vec) {
         .x = (a.point.x + b.point.x + c.point.x) / 3.0,
         .y = (a.point.y + b.point.y + c.point.y) / 3.0,
         .z = (a.point.z + b.point.z + c.point.z) / 3.0
     };
+}
+
+Tri tri_new(Vertex a, Vertex b, Vertex c, Material* material) {
+    Vec centroid = helper_tri_centroid(a, b, c);
 
     return (Tri) { a, b, c, centroid, material };
 }
@@ -250,5 +254,83 @@ struct Mesh {
     Tri* tris;
     Mesh* next;
 };
+
+//
+// `Axis` declaration
+
+typedef enum Axis { X, Y, Z } Axis;
+
+//
+// `Transform` declaration
+
+typedef enum TransformType { ROTATE, SCALE, TRANSLATE } TransformType;
+
+typedef struct Transform {
+    TransformType tt;
+    Vec a;
+    double t;
+} Transform;
+
+void transform_print(Transform* t); // TODO
+
+Transform transform_rotate(Axis axis, double angle) {
+    Vec temp = (Vec) {
+        .x = (double) (axis == X),
+        .y = (double) (axis == Y),
+        .z = (double) (axis == Z)
+    };
+
+    return (Transform) {
+        .tt = ROTATE,
+        .a = temp,
+        .t = angle
+    };
+}
+
+Transform transform_scale(Vec factor) {
+    return (Transform) {
+        .tt = SCALE,
+        .a = factor
+    };
+}
+
+Transform transform_translate(Vec offset) {
+    return (Transform) {
+        .tt = TRANSLATE,
+        .a = offset
+    };
+}
+
+//
+// `Mesh` functions
+
+void mesh_transform(Mesh* mesh, Transform t) {
+    Mat m;
+    switch(t.tt) {
+        case ROTATE: {
+                Mat mx, my, mz;
+                mx = rot_x(t.t * t.a.x);
+                my = rot_y(t.t * t.a.y);
+                mz = rot_z(t.t * t.a.z);
+
+                Mat temp;
+                temp = mul_mm(mx, my); mat_free(&mx);   mat_free(&my);
+                m = mul_mm(temp, mz);  mat_free(&temp); mat_free(&mz);
+        }; break;
+        case SCALE: m = scale(t.a); break;
+        case TRANSLATE: m = translate(t.a); break;
+    }
+
+    size_t i;
+    for(i = 0; i < mesh->tc; i++) {
+        Tri* tri = &(mesh->tris[i]);
+        tri->a.point = mul_vm(tri->a.point, m, POINT);
+        tri->b.point = mul_vm(tri->b.point, m, POINT);
+        tri->c.point = mul_vm(tri->c.point, m, POINT);
+        tri->centroid = helper_tri_centroid(tri->a, tri->b, tri->c);
+    }
+
+    mat_free(&m);
+}
 
 #endif /* GEOM_H */
