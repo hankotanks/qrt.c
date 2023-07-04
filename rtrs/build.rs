@@ -1,33 +1,27 @@
 use std::fs;
 
-fn main() {
-    match project_root::get_project_root() {
-        Ok(crate_root) => match crate_root.parent() {
-            Some(project_root) => {
-                let source_dir = project_root.join("src").join("rt.c");
-                println!("cargo:rerun-if-changed={:?}", source_dir);
+use anyhow::anyhow;
 
-                let include_dir = project_root.join("include");
-                match fs::read_dir(&include_dir) {
-                    Ok(include_dir_read) => for entry in include_dir_read {
-                        if let Ok(entry) = entry {
-                            println!("cargo:rerun-if-changed={:?}", entry.path())
-                        }
-                    },
-                    Err(_) => {
-                        eprintln!("Build Error: Failed to read include directory: {:?}", include_dir);
-                    }
-                }
+fn main() -> anyhow::Result<()> {
+    let crate_path = project_root::get_project_root()?;
+    let project_path = crate_path.parent().ok_or(
+        anyhow!("Build Error: Broken directory structure."))?;
 
-                cc::Build::new()
-                    .file(source_dir)
-                    .include(include_dir)
-                    .compile("rt");
+    let stub_path = crate_path.join("interface").join("stub.c");
 
-                println!("Rebuilt `rt.c` library...");
-            },
-            None => eprintln!("Build Error: Could not find project root.")
-        },
-        Err(_) => eprintln!("Build Error: Could not find project root.")
-    };
+    let include_dir = project_path.join("include");
+    for entry in fs::read_dir(&include_dir)? {
+        match entry?.path().into_os_string().into_string() {
+            Ok(entry_path_string) => println!("cargo:rerun-if-changed={}", entry_path_string),
+            Err(_) => return Err(
+                anyhow!("Build Error: Path to header files isn't UTF-8 encoded."))
+        }
+    }
+
+    cc::Build::new()
+        .file(&stub_path)
+        .include(include_dir)
+        .compile("rt");
+
+    Ok(())
 }
