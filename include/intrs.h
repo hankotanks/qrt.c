@@ -211,8 +211,19 @@ int helper_bvh_contains(Vec minima, Vec maxima, Surface s) {
 
 int helper_bvh_scale_check(double d, BVH* l, BVH* r) {
     if(d < 0.5 * EPS_BVH) { // 0.000002
-        free(l);
-        free(r);
+        SLL* temp;
+
+        while(l->surfaces) {
+            temp = l->surfaces;
+            l->surfaces = l->surfaces->next;
+            free(temp);
+        } free(l);
+        
+        while(r->surfaces) {
+            temp = r->surfaces;
+            r->surfaces = r->surfaces->next;
+            free(temp);
+        } free(r);
 
         return 1;
     }
@@ -320,6 +331,13 @@ void bvh_split(BVH* h) {
         bvh_split(h);
     } else {
         assert(l->surfaces && r->surfaces);
+
+        SLL* temp;
+        while(h->surfaces) {
+            temp = h->surfaces;
+            h->surfaces = h->surfaces->next;
+            free(temp);
+        } h->surfaces = NULL;
 
         helper_bvh_extrema(l->surfaces, &l->minima, &l->maxima);
         bvh_split(l);

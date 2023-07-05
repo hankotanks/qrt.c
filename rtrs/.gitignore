@@ -1,2 +1,5 @@
-/target/
-Cargo.lock
+# Do not add the build to commits
+/target
+
+# Ignore `Cargo.lock`
+*.lock
