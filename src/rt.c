@@ -84,11 +84,5 @@ int main(void) {
  *  - `surfaces` only need to be calculated when `scene_add_sphere` and `scene_add_mesh` are called.
  *    `tt` needs to be calculated whenever `surfaces` does, but also when objects move.
  *     - I should implement a system to manage this.
- *  - Update normals when transforming meshes.
- *  - Add ability to transform spheres and lights as well.
- *     - Spheres won't be able to be rotated (obviously).
- *     - Lights can only be translated.
  *  - I'll need to double check BVH and `surfaces` state when reinitializing.
  */
-
-// NEXT STEP: Diagnose memory leak

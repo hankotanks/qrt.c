@@ -45,6 +45,62 @@ struct Material {
 };
 
 //
+// `Axis` declaration
+
+typedef enum Axis { X, Y, Z } Axis;
+
+//
+// `Transform` declaration
+
+typedef enum TransformType { ROTATE, SCALE, SCALE_UNIFORM, TRANSLATE } TransformType;
+
+typedef struct Transform {
+    TransformType tt;
+    Vec a;
+    double t;
+} Transform;
+
+void transform_print(Transform* t); // TODO
+
+//
+// `Transform` creation
+
+Transform transform_rotate(Axis axis, double angle) {
+    Vec temp = (Vec) {
+        .x = (double) (axis == X),
+        .y = (double) (axis == Y),
+        .z = (double) (axis == Z)
+    };
+
+    return (Transform) {
+        .tt = ROTATE,
+        .a = temp,
+        .t = angle
+    };
+}
+
+Transform transform_scale(Vec factor) {
+    return (Transform) {
+        .tt = SCALE,
+        .a = factor
+    };
+}
+
+Transform transform_scale_uniform(double factor) {
+    return (Transform) {
+        .tt = SCALE_UNIFORM,
+        .t = factor
+    };
+}
+
+Transform transform_translate(Vec offset) {
+    return (Transform) {
+        .tt = TRANSLATE,
+        .a = offset
+    };
+}
+
+//
 // `Sphere` declaration
 
 typedef struct Sphere {
@@ -101,6 +157,19 @@ double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
     return t_max + 1.;
 }
 
+// Returns 1 if the given Transform is not supported by `Sphere`
+int sphere_transform(Sphere* s, Transform t) {
+    switch(t.tt) {
+        case SCALE_UNIFORM: s->radius *= t.t; return 0;
+        case TRANSLATE: {
+            Mat translation = translate(t.a);
+            s->center = mul_vm(s->center, translation, POINT);
+            mat_free(&translation);
+        }; return 0;
+        default: return 1;
+    }
+}
+
 //
 // `Light` declaration
 
@@ -132,6 +201,18 @@ void light_print_internal(Light* l, char* name, size_t indent) {
 
 void light_print(Light* l) {
     light_print_internal(l, NULL, 0);
+}
+
+// Returns 1 if the given Transform is not supported by `Light`
+int light_transform(Light* l, Transform t) {
+    switch(t.tt) {
+        case TRANSLATE: {
+            Mat translation = translate(t.a);
+            l->pos = mul_vm(l->pos, translation, POINT);
+            mat_free(&translation);
+        }; return 0;
+        default: return 1;
+    }
 }
 
 //
@@ -246,55 +327,11 @@ struct Mesh {
 };
 
 //
-// `Axis` declaration
-
-typedef enum Axis { X, Y, Z } Axis;
-
-//
-// `Transform` declaration
-
-typedef enum TransformType { ROTATE, SCALE, TRANSLATE } TransformType;
-
-typedef struct Transform {
-    TransformType tt;
-    Vec a;
-    double t;
-} Transform;
-
-void transform_print(Transform* t); // TODO
-
-Transform transform_rotate(Axis axis, double angle) {
-    Vec temp = (Vec) {
-        .x = (double) (axis == X),
-        .y = (double) (axis == Y),
-        .z = (double) (axis == Z)
-    };
-
-    return (Transform) {
-        .tt = ROTATE,
-        .a = temp,
-        .t = angle
-    };
-}
-
-Transform transform_scale(Vec factor) {
-    return (Transform) {
-        .tt = SCALE,
-        .a = factor
-    };
-}
-
-Transform transform_translate(Vec offset) {
-    return (Transform) {
-        .tt = TRANSLATE,
-        .a = offset
-    };
-}
-
-//
 // `Mesh` functions
 
-void mesh_transform(Mesh* mesh, Transform t) {
+// Returns 1 if the given `Transform` is not supported by `Mesh`
+// This never occurs because `Mesh` accepts all transforms
+int mesh_transform(Mesh* mesh, Transform t) {
     Mat m;
     switch(t.tt) {
         case ROTATE: {
@@ -308,19 +345,28 @@ void mesh_transform(Mesh* mesh, Transform t) {
                 m = mul_mm(temp, mz);  mat_free(&temp); mat_free(&mz);
         }; break;
         case SCALE: m = scale(t.a); break;
+        case SCALE_UNIFORM: m = scale(vec_aaa(t.t)); break;
         case TRANSLATE: m = translate(t.a); break;
     }
 
     size_t i;
     for(i = 0; i < mesh->tc; i++) {
         Tri* tri = &(mesh->tris[i]);
+
         tri->a.point = mul_vm(tri->a.point, m, POINT);
         tri->b.point = mul_vm(tri->b.point, m, POINT);
         tri->c.point = mul_vm(tri->c.point, m, POINT);
+
+        tri->a.normal = mul_vm(tri->a.normal, m, VECTOR);
+        tri->b.normal = mul_vm(tri->b.normal, m, VECTOR);
+        tri->c.normal = mul_vm(tri->c.normal, m, VECTOR);
+        
         tri->centroid = helper_tri_centroid(tri->a, tri->b, tri->c);
     }
 
     mat_free(&m);
+
+    return 0;
 }
 
 #endif /* GEOM_H */
