@@ -96,10 +96,8 @@ struct BVH {
     BVH* r;
     Vec minima;
     Vec maxima;
-    size_t c;
-    Surface* surfaces;
+    SLL* surfaces;
 };
-
 
 //
 // `BVH` functions
@@ -114,13 +112,14 @@ void helper_bvh_push_extrema(Vec a, Vec* minima, Vec* maxima) {
     if(a.z > maxima->z) maxima->z = a.z;
 }
 
-void helper_bvh_extrema(size_t c, const Surface* surfaces, Vec* minima, Vec* maxima) {
+void helper_bvh_extrema(SLL* surfaces, Vec* minima, Vec* maxima) {
     *minima = vec_aaa(DBL_MAX);
     *maxima = vec_aaa(-1. * DBL_MAX);
 
-    size_t i;
-    for(i = 0; i < c; i++) {
-        Surface s = surfaces[i];
+    SLL* curr;
+    for(curr = surfaces; curr; curr = curr->next) {
+        Surface s = *(Surface*) curr->item;
+
         switch(s.st) {
             case TRI: {
                 helper_bvh_push_extrema(s.tri->a.point, minima, maxima);
@@ -141,68 +140,25 @@ void helper_bvh_extrema(size_t c, const Surface* surfaces, Vec* minima, Vec* max
     }
 }
 
-// Forward definition of the hierarchy split function
+// Forward definition of the hierarchy split functionality
 void bvh_split(BVH* h);
 
-BVH* bvh_initialize(SLL* meshes, SLL* spheres) {
-    assert(meshes || spheres);
-
-    SLL* temp = meshes;
-
-    size_t tc = 0, sc = 0, c = 0;
-    while(temp) {
-        Mesh* item = (Mesh*) temp->item;
-        tc += item->tc;
-        temp = temp->next;
-    }
-
-    temp = spheres;
-    while(temp) {
-        temp = temp->next;
-        ++sc;
-    } assert(tc || sc);
-
-    Surface* surfaces = malloc((tc + sc) * (sizeof *surfaces));
-
-    temp = meshes;
-    while(temp) {
-        size_t n;
-        Mesh* item = (Mesh*) temp->item;
-        for(n = 0; n < item->tc; n++) {
-            surfaces[c] = (Surface) {
-                .st = TRI,
-                .tri = &item->tris[n]
-            };
-
-            ++c;
-        }
-
-        temp = temp->next;
-    }
-
-    temp = spheres;
-    while(temp) {
-        surfaces[c] = (Surface) {
-            .st = SPHERE,
-            .sphere = (Sphere*) temp->item
-        };
-
-        temp = temp->next;
-
-        ++c;
-    }
+BVH* bvh_initialize(size_t sc, Surface* surfaces) {
+    SLL* head = NULL;
+    
+    size_t i;
+    for(i = 0; i < sc; i++) head = sll_insert(head, &surfaces[i]);
 
     Vec minima, maxima;
-    helper_bvh_extrema(tc + sc, surfaces, &minima, &maxima);
+    helper_bvh_extrema(head, &minima, &maxima);
 
     BVH* h = malloc(sizeof *h);
     *h = (BVH) {
         .l = NULL,
         .r = NULL,
         .minima = minima,
-        .maxima = maxima,
-        .c = tc + sc,
-        .surfaces = surfaces
+        .maxima = maxima, // `sc` is initalized to 0 implicitly
+        .surfaces = head
     };
     
     bvh_split(h);
@@ -211,10 +167,19 @@ BVH* bvh_initialize(SLL* meshes, SLL* spheres) {
 }
 
 void bvh_free(BVH* h) {
+    if(!h) return;
+    
     if(h->l) bvh_free(h->l);
     if(h->r) bvh_free(h->r);
+
+    SLL* temp;
+    while(h->surfaces) {
+        temp = h->surfaces;
+        h->surfaces = h->surfaces->next;
+
+        free(temp);
+    }
     
-    free(h->surfaces);
     free(h);
 }
 
@@ -246,9 +211,7 @@ int helper_bvh_contains(Vec minima, Vec maxima, Surface s) {
 
 int helper_bvh_scale_check(double d, BVH* l, BVH* r) {
     if(d < 0.5 * EPS_BVH) { // 0.000002
-        free(l->surfaces);
         free(l);
-        free(r->surfaces);
         free(r);
 
         return 1;
@@ -289,7 +252,7 @@ int helper_bvh_ray_collides(BVH* h, Ray r) {
 // `BVH` split functionality
 
 void bvh_split(BVH* h) {
-    if(h->c == 1) return;
+    if(!h->surfaces->next) return;
 
     double dx, dy, dz;
     dx = h->maxima.x - h->minima.x;
@@ -302,8 +265,7 @@ void bvh_split(BVH* h) {
         .r = NULL,
         .minima = h->minima,
         .maxima = h->maxima,
-        .c = 0,
-        .surfaces = malloc(h->c * (sizeof *l->surfaces))
+        .surfaces = NULL
     };
 
     BVH* r = malloc(sizeof *r);
@@ -312,8 +274,7 @@ void bvh_split(BVH* h) {
         .r = NULL,
         .minima = h->minima,
         .maxima = h->maxima,
-        .c = 0,
-        .surfaces = malloc(h->c * (sizeof *r->surfaces))
+        .surfaces = NULL
     };
 
     if(dx >= dy && dx >= dz) { // dx
@@ -333,25 +294,24 @@ void bvh_split(BVH* h) {
         r->minima.z = l->maxima.z;
     }
 
-    size_t i;
-    for(i = 0; i < h->c; i++) {
-        if(helper_bvh_contains(l->minima, l->maxima, h->surfaces[i])) {
-            l->surfaces[l->c] = h->surfaces[i];
-            ++(l->c);
-        } else {
-            r->surfaces[r->c] = h->surfaces[i];
-            ++(r->c);
-        }
+    SLL* curr;
+    for(curr = h->surfaces; curr; curr = curr->next) {
+        Surface* s = (Surface*) curr->item;
+
+        if(helper_bvh_contains(l->minima, l->maxima, *s))
+            l->surfaces = sll_insert(l->surfaces, s);
+        else
+            r->surfaces = sll_insert(r->surfaces, s);
     }
 
-    if(l->c == 0) {
+    if(!l->surfaces) {
         h->minima = r->minima;
         h->maxima = r->maxima;
 
         helper_bvh_scale_check(0., l, r);
 
         bvh_split(h);
-    } else if(r->c == 0) {
+    } else if(!r->surfaces) {
         h->minima = l->minima;
         h->maxima = l->maxima;
 
@@ -359,40 +319,17 @@ void bvh_split(BVH* h) {
 
         bvh_split(h);
     } else {
-        l->surfaces = realloc(l->surfaces, l->c * (sizeof *l->surfaces));
-        assert(l->surfaces);
+        assert(l->surfaces && r->surfaces);
 
-        r->surfaces = realloc(r->surfaces, r->c * (sizeof *r->surfaces));
-        assert(r->surfaces);
-
-        helper_bvh_extrema(l->c, l->surfaces, &l->minima, &l->maxima);
+        helper_bvh_extrema(l->surfaces, &l->minima, &l->maxima);
         bvh_split(l);
 
-        helper_bvh_extrema(r->c, r->surfaces, &r->minima, &r->maxima);
+        helper_bvh_extrema(r->surfaces, &r->minima, &r->maxima);
         bvh_split(r);
 
         h->l = l;
         h->r = r;
     }
-}
-
-void bvh_print_internal(BVH* h, size_t indent) {
-    int id = 4 * (int) indent;
-
-    printf("%.*sbvh (%u) {\n", id, PADDING, (unsigned) h->c);
-
-    if(!h->l && !h->r) {
-        size_t i;
-        for(i = 0; i < h->c; i++)
-            surface_print_internal(&h->surfaces[i], NULL, indent + 1);
-    } else {
-        bvh_print_internal(h->l, indent + 1);
-        bvh_print_internal(h->r, indent + 1);
-    } printf("%.*s}\n", id, PADDING);
-}
-
-void bvh_print(BVH* h) {
-    bvh_print_internal(h, 0);
 }
 
 //
@@ -496,21 +433,23 @@ Intersection helper_bvh_intersection(BVH* h, Ray r, Surface e, double t_min, dou
     if(!helper_bvh_ray_collides(h, r)) return intrs_a;
 
     if(!h->l && !h->r) {
-        size_t i;
-        for(i = 0; i < h->c; i++) {
+        SLL* curr;
+        for(curr = h->surfaces; curr; curr = curr->next) {
+            Surface s = *(Surface*) curr->item;
+
             double t;
-            switch(h->surfaces[i].st) {
+            switch(s.st) {
                 case TRI:
-                    t = tri_intersection(*h->surfaces[i].tri, r, t_min, t_max);
+                    t = tri_intersection(*s.tri, r, t_min, t_max);
                     break;
                 case SPHERE:
-                    t = sphere_intersection(*h->surfaces[i].sphere, r, t_min, t_max);
+                    t = sphere_intersection(*s.sphere, r, t_min, t_max);
                     break;
                 case NONE: continue;
             }
 
-            if(t < intrs_a.t && !surface_match(e, h->surfaces[i])) {
-                intrs_a.s = h->surfaces[i];
+            if(t < intrs_a.t && !surface_match(e, s)) {
+                intrs_a.s = s;
                 intrs_a.t = t;
             }
         }

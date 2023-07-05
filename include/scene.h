@@ -28,16 +28,6 @@ typedef struct Config {
 //
 // `Scene` declaration
 
-/*
-typedef struct Scene {
-    Camera camera;
-    Material* materials;
-    BVH* tt;
-    Light* lights;
-    Mesh* meshes;
-    Sphere* spheres;    
-} Scene; */
-
 typedef struct Scene {
     Camera camera;
     SLL* materials;
@@ -45,6 +35,8 @@ typedef struct Scene {
     SLL* lights;
     SLL* meshes;
     SLL* spheres;    
+    size_t sc;
+    Surface* surfaces;
 } Scene;
 
 Scene scene_new(Camera c) {
@@ -54,7 +46,8 @@ Scene scene_new(Camera c) {
         .tt = NULL,
         .lights = NULL,
         .meshes = NULL,
-        .spheres = NULL
+        .spheres = NULL,
+        .surfaces = NULL
     };
 }
 
@@ -90,12 +83,43 @@ Sphere* scene_add_sphere(Scene* s, Sphere temp) {
 }
 
 void scene_initialize(Scene* s) {
-    s->tt = bvh_initialize(s->meshes, s->spheres);
+    assert(s->meshes || s->spheres);
+
+    SLL* curr;
+
+    size_t sc = 0, t = 0;
+    for(curr = s->meshes; curr; curr = curr->next) 
+        sc += ((Mesh*) curr->item)->tc;
+    for(curr = s->spheres; curr; curr = curr->next) ++sc;
+
+    Surface* surfaces = malloc(sc * sizeof *surfaces);
+    for(curr = s->meshes; curr; curr = curr->next) {
+        Mesh* mesh = (Mesh*) curr->item;
+
+        size_t i;
+        for(i = 0; i < mesh->tc; i++) {
+            surfaces[t] = (Surface) {
+                .st = TRI,
+                .tri = &mesh->tris[i]
+            }; t++;
+        }
+    }
+
+    for(curr = s->spheres; curr; curr = curr->next) {
+        surfaces[t] = (Surface) {
+            .st = SPHERE,
+            .sphere = (Sphere*) curr->item
+        }; t++;
+    }
+
+    s->sc = sc;
+    s->surfaces = surfaces;
+    s->tt = bvh_initialize(s->sc, s->surfaces);
 }
 
 void scene_free(Scene* s) {
     SLL* temp;
-    
+
     while(s->materials) {
         temp = s->materials;
         s->materials = s->materials->next;
@@ -134,6 +158,8 @@ void scene_free(Scene* s) {
     }
 
     if(s->tt) bvh_free(s->tt);
+
+    if(s->surfaces) free(s->surfaces);
 }
 
 //
