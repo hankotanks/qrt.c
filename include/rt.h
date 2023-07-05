@@ -45,15 +45,17 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
     Material* material = intersection_material(intrs);
 
     Vec pixel_color = mul_vs(material->color_ambient, c.ambience);
-    Light* l = s.lights; while(l) {
+    SLL* curr = s.lights; while(curr) {
+        Light light = *(Light*) curr->item;
+
         Ray light_ray = (Ray) {
             .origin = hit,
-            .dir = norm_v(sub_vv(l->pos, hit))
+            .dir = norm_v(sub_vv(light.pos, hit))
         };
         
         Intersection shadow = intersection_check_excl(s, c, light_ray, intrs.s);
         if(!shadow.s.st) {
-            double diffuse = MAX(0., dot_vv(normal, light_ray.dir) * l->strength);
+            double diffuse = MAX(0., dot_vv(normal, light_ray.dir) * light.strength);
 
             pixel_color = add_vv(pixel_color, mul_vs(material->color_diffuse, diffuse));
 
@@ -64,7 +66,7 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
             pixel_color = add_vv(pixel_color, mul_vs(material->color_spec, spec));
         }
 
-        l = l->next;
+        curr = curr->next;
     }
 
     return clamp_v(pixel_color, 0., 1.);

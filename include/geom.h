@@ -37,26 +37,21 @@ void ray_print(Ray* r) {
 typedef struct Material Material;
 
 struct Material {
-    char* name;
     Vec color_ambient;
     Vec color_diffuse;
     Vec color_spec;
     double luster;
     double metallicity;
-    Material* next;
 };
 
 //
 // `Sphere` declaration
 
-typedef struct Sphere Sphere;
-
-struct Sphere {
+typedef struct Sphere {
     Vec center;
     double radius;
     Material* material;
-    Sphere* next;
-};
+} Sphere;
 
 void sphere_print_internal(Sphere* s, char* name, size_t indent) {
     int id = 4 * (int) indent; 
@@ -109,16 +104,13 @@ double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
 //
 // `Light` declaration
 
-typedef struct Light Light;
-
-struct Light {
+typedef struct Light {
     Vec pos;
     double strength;
-    Light* next;
-};
+} Light;
 
 Light light_new(Vec pos, double strength) {
-    return (Light) { .pos = pos, .strength = strength, .next = NULL };
+    return (Light) { .pos = pos, .strength = strength };
 }
 
 void light_print_internal(Light* l, char* name, size_t indent) {
@@ -249,10 +241,8 @@ double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
 typedef struct Mesh Mesh;
 
 struct Mesh {
-    char* name;
     size_t tc;
     Tri* tris;
-    Mesh* next;
 };
 
 //

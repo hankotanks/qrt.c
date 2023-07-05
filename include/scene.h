@@ -28,6 +28,7 @@ typedef struct Config {
 //
 // `Scene` declaration
 
+/*
 typedef struct Scene {
     Camera camera;
     Material* materials;
@@ -35,6 +36,15 @@ typedef struct Scene {
     Light* lights;
     Mesh* meshes;
     Sphere* spheres;    
+} Scene; */
+
+typedef struct Scene {
+    Camera camera;
+    SLL* materials;
+    BVH* tt;
+    SLL* lights;
+    SLL* meshes;
+    SLL* spheres;    
 } Scene;
 
 Scene scene_new(Camera c) {
@@ -48,43 +58,35 @@ Scene scene_new(Camera c) {
     };
 }
 
-void scene_add_mesh(Scene* s, Mesh* m) {
-    if(s->meshes) m->next = s->meshes;
-
-    s->meshes = m;
+void scene_add_mesh(Scene* s, Mesh* mesh) {
+    s->meshes = sll_insert(s->meshes, mesh);
 }
 
-Light* scene_add_light(Scene* s, Light l) {
-    Light* temp = malloc(sizeof *(s->lights));
-    /* */ *temp = l;
+Light* scene_add_light(Scene* s, Light temp) {
+    Light* light = malloc(sizeof *light);
+    memcpy(light, &temp, sizeof *light);
 
-    if(s->lights) temp->next = s->lights;
+    s->lights = sll_insert(s->lights, light);
 
-    s->lights = temp;
-
-    return s->lights;
+    return light;
 }
 
-Material* scene_add_material(Scene* s, Material material) {
-    Material* temp = malloc(sizeof *s->materials);
-    /*     */*temp = material;
+Material* scene_add_material(Scene* s, Material temp) {
+    Material* material = malloc(sizeof *material);
+    memcpy(material, &temp, sizeof *material);
 
-    if(s->materials) temp->next = s->materials;
+    s->materials = sll_insert(s->materials, material);
 
-    s->materials = temp;
-
-    return s->materials;
+    return material;
 }
 
-Sphere* scene_add_sphere(Scene* s, Sphere sphere) {
-    Sphere* temp = malloc(sizeof *s->spheres);
-    /*  */ *temp = sphere;
+Sphere* scene_add_sphere(Scene* s, Sphere temp) {
+    Sphere* sphere = malloc(sizeof *sphere);
+    memcpy(sphere, &temp, sizeof *sphere);
 
-    if(s->spheres) temp->next = s->spheres;
+    s->spheres = sll_insert(s->spheres, sphere);
 
-    s->spheres = temp;
-
-    return s->spheres;
+    return sphere;
 }
 
 void scene_initialize(Scene* s) {
@@ -92,42 +94,46 @@ void scene_initialize(Scene* s) {
 }
 
 void scene_free(Scene* s) {
-    Material* material;
+    SLL* temp;
+    
     while(s->materials) {
-        material = s->materials;
+        temp = s->materials;
         s->materials = s->materials->next;
 
-        free(material->name);
-        free(material);
+        Material* item = (Material*) temp->item;
+        free(item);
+        free(temp);
+    }
+    
+    while(s->lights) {
+        temp = s->lights;
+        s->lights = s->lights->next;
+
+        Light* item = (Light*) temp->item;
+        free(item);
+        free(temp);
+    }
+
+    while(s->meshes) {
+        temp = s->meshes;
+        s->meshes = s->meshes->next;
+
+        Mesh* item = (Mesh*) temp->item;
+        free(item->tris);
+        free(item);
+        free(temp);
+    }
+
+    while(s->spheres) {
+        temp = s->spheres;
+        s->spheres = s->spheres->next;
+
+        Sphere* item = (Sphere*) temp->item;
+        free(item);
+        free(temp);
     }
 
     if(s->tt) bvh_free(s->tt);
-
-    Light* l;
-    while(s->lights) {
-        l = s->lights;
-        s->lights = s->lights->next;
-
-        free(l);
-    }
-
-    Mesh* m;
-    while(s->meshes) {
-        m = s->meshes;
-        s->meshes = s->meshes->next;
-
-        free(m->name);
-        free(m->tris);
-        free(m);
-    }
-
-    Sphere* sphere;
-    while(s->spheres) {
-        sphere = s->spheres;
-        s->spheres = s->spheres->next;
-
-        free(sphere);
-    }
 }
 
 //

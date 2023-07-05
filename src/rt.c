@@ -11,36 +11,33 @@ int main(void) {
     Scene scene = scene_new(camera);
 
     Material shiny_orange_temp = (Material) {
-        .name = malloc(strlen("ShinyOrange") + 1),
         .color_ambient = vec_abc(1., 0.4, 0.),
         .color_diffuse = vec_abc(1., 0.4, 0.),
         .color_spec = vec_abc(1., 0.4, 0.),
         .luster = 1.,
         .metallicity = 125.
-    }; strcpy(shiny_orange_temp.name, "ShinyOrange");
+    };
     Material* shiny_orange = scene_add_material(&scene, shiny_orange_temp);
 
     Material blue_temp = (Material) {
-        .name = malloc(strlen("Blue") + 1),
         .color_ambient = vec_abc(0.2, 0.2, 1.),
         .color_diffuse = vec_abc(0.2, 0.2, 1.),
         .color_spec = vec_abc(0.2, 0.2, 1.),
         .luster = 0.5,
         .metallicity = 50.
-    }; strcpy(blue_temp.name, "Blue");
+    };
     Material* blue = scene_add_material(&scene, blue_temp);
 
     Material muddy_green_temp = (Material) {
-        .name = malloc(strlen("MuddyGreen") + 1),
         .color_ambient = vec_abc(0.2, 0.4, 0.),
         .color_diffuse = vec_abc(0.2, 0.4, 0.),
         .color_spec = vec_abc(0.2, 0.4, 0.),
         .luster = 1.,
-        .metallicity = 75.,
-    }; strcpy(muddy_green_temp.name, "MuddyGreen");
+        .metallicity = 75.
+    };
     Material* muddy_green = scene_add_material(&scene, muddy_green_temp);
     
-    Mesh* teapot = mesh_from_raw("teapot", "C:/Users/hank/Documents/projects/rt.c/models/uteapot", shiny_orange);
+    Mesh* teapot = mesh_from_raw("C:/Users/hank/Documents/projects/rt.c/models/uteapot", shiny_orange);
     mesh_transform(teapot, transform_rotate(Z, 1.570796));
 
     scene_add_mesh(&scene, teapot);
@@ -77,7 +74,6 @@ int main(void) {
     printf("Complete...\n");
 
     scene_free(&scene);
-
     buffer_free(&b);
 
     return 0;

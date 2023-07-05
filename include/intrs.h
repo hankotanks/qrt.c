@@ -9,6 +9,31 @@
 #define EPS_BVH 0.2
 
 //
+// `SLL` declaration
+
+typedef struct SLL SLL;
+
+struct SLL {
+    void* item;
+    SLL* next;
+};
+
+//
+// Add to `SLL` function
+
+SLL* sll_insert(SLL* head, void* item) {
+    SLL node_temp = (SLL) {
+        .item = item,
+        .next = head
+    };
+
+    SLL* node = malloc(sizeof *node);
+    memcpy(node, &node_temp, sizeof *node);
+
+    return node;
+}
+
+//
 // `Surface` declaration
 
 typedef enum SurfaceType { NONE = 0, TRI, SPHERE } SurfaceType;
@@ -119,48 +144,50 @@ void helper_bvh_extrema(size_t c, const Surface* surfaces, Vec* minima, Vec* max
 // Forward definition of the hierarchy split function
 void bvh_split(BVH* h);
 
-BVH* bvh_initialize(Mesh* meshes, Sphere* spheres) {
+BVH* bvh_initialize(SLL* meshes, SLL* spheres) {
     assert(meshes || spheres);
 
-    Mesh* curr_mesh = meshes;
+    SLL* temp = meshes;
 
     size_t tc = 0, sc = 0, c = 0;
-    while(curr_mesh) {
-        tc += curr_mesh->tc;
-        curr_mesh = curr_mesh->next;
+    while(temp) {
+        Mesh* item = (Mesh*) temp->item;
+        tc += item->tc;
+        temp = temp->next;
     }
 
-    Sphere* curr_sphere = spheres;
-    while(curr_sphere) {
-        curr_sphere = curr_sphere->next;
+    temp = spheres;
+    while(temp) {
+        temp = temp->next;
         ++sc;
     } assert(tc || sc);
 
     Surface* surfaces = malloc((tc + sc) * (sizeof *surfaces));
 
-    curr_mesh = meshes;
-    while(curr_mesh) {
+    temp = meshes;
+    while(temp) {
         size_t n;
-        for(n = 0; n < curr_mesh->tc; n++) {
+        Mesh* item = (Mesh*) temp->item;
+        for(n = 0; n < item->tc; n++) {
             surfaces[c] = (Surface) {
                 .st = TRI,
-                .tri = &curr_mesh->tris[n]
+                .tri = &item->tris[n]
             };
 
             ++c;
         }
 
-        curr_mesh = curr_mesh->next;
+        temp = temp->next;
     }
 
-    curr_sphere = spheres;
-    while(curr_sphere) {
+    temp = spheres;
+    while(temp) {
         surfaces[c] = (Surface) {
             .st = SPHERE,
-            .sphere = curr_sphere
+            .sphere = (Sphere*) temp->item
         };
 
-        curr_sphere = curr_sphere->next;
+        temp = temp->next;
 
         ++c;
     }

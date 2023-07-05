@@ -3,7 +3,6 @@
 
 #include<stdlib.h>
 #include<stdio.h>
-#include<string.h>
 
 #include "geom.h"
 
@@ -14,7 +13,7 @@ void size_t_read(FILE* f, size_t* val) {
     *val = (size_t) i;
 }
 
-Mesh* mesh_from_raw(char* name, char* file, Material* material) {
+Mesh* mesh_from_raw(char* file, Material* material) {
     FILE* f = fopen(file, "r");
 
     size_t tc, i;
@@ -22,11 +21,9 @@ Mesh* mesh_from_raw(char* name, char* file, Material* material) {
 
     Mesh* m = malloc(sizeof *m);
     *m = (Mesh) {
-        .name = malloc(strlen(name) + 1),
         .tc = tc,
-        .tris = calloc(tc, sizeof *m->tris),
-        .next = NULL
-    }; strcpy(m->name, name);
+        .tris = calloc(tc, sizeof *m->tris)
+    };
 
     Vertex a, b, c;
     for(i = 0; i < tc; i++) {
