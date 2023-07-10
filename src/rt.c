@@ -37,10 +37,10 @@ int main(void) {
     };
     Material* muddy_green = scene_add_material(&scene, muddy_green_temp);
     
-    Mesh* teapot = mesh_from_raw("C:/Users/hank/Documents/projects/rt.c/models/uteapot", shiny_orange);
+    Mesh* teapot = mesh_from_raw("/mnt/c/Users/hank/Documents/projects/rt.c/models/uteapot", shiny_orange);
     mesh_transform(teapot, transform_rotate(Z, 1.570796));
 
-    scene_add_mesh(&scene, teapot);
+    scene_add_mesh(&scene, teapot, STATIC);
     scene_add_light(&scene, light_new(vec_abc(15., 10., 0.), 0.8));
     scene_add_light(&scene, light_new(vec_abc(-15., 10., 0.), 0.8));
 
@@ -48,13 +48,13 @@ int main(void) {
         .center = vec_abc(0.0, 0.0, 15.0), 
         .radius = 10.,
         .material = blue 
-    } );
+    }, STATIC);
 
-    scene_add_sphere(&scene, (Sphere) {
+    Sphere* dyn_sphere = scene_add_sphere(&scene, (Sphere) {
        .center = vec_abc(8., -8., 6.),
        .radius = 4.,
        .material = muddy_green
-    } );
+    }, DYNAMIC);
 
     scene_initialize(&scene);
 

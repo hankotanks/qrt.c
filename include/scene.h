@@ -26,6 +26,11 @@ typedef struct Config {
 } Config;
 
 //
+// `ObjectMode` declaration
+
+typedef enum Motility { STATIC = 0, DYNAMIC } Motility;
+
+//
 // `Scene` declaration
 
 typedef struct Scene {
@@ -33,10 +38,14 @@ typedef struct Scene {
     SLL* materials;
     BVH* tt;
     SLL* lights;
-    SLL* meshes;
-    SLL* spheres;    
-    size_t sc;
-    Surface* surfaces;
+    SLL* s_meshes;
+    SLL* d_meshes;
+    SLL* s_spheres;   
+    SLL* d_spheres; 
+    size_t ssc;
+    Surface* s_surfaces;
+    size_t dsc;
+    Surface* d_surfaces;
 } Scene;
 
 Scene scene_new(Camera c) {
@@ -45,14 +54,20 @@ Scene scene_new(Camera c) {
         .materials = NULL,
         .tt = NULL,
         .lights = NULL,
-        .meshes = NULL,
-        .spheres = NULL,
-        .surfaces = NULL
+        .s_meshes = NULL,
+        .d_meshes = NULL,
+        .s_spheres = NULL,
+        .d_spheres = NULL,
+        .s_surfaces = NULL,
+        .d_surfaces = NULL
     };
 }
 
-void scene_add_mesh(Scene* s, Mesh* mesh) {
-    s->meshes = sll_insert(s->meshes, mesh);
+void scene_add_mesh(Scene* s, Mesh* mesh, Motility om) {
+    if(om) 
+        s->d_meshes = sll_insert(s->d_meshes, mesh);
+    else
+        s->s_meshes = sll_insert(s->s_meshes, mesh);
 }
 
 Light* scene_add_light(Scene* s, Light temp) {
@@ -73,48 +88,54 @@ Material* scene_add_material(Scene* s, Material temp) {
     return material;
 }
 
-Sphere* scene_add_sphere(Scene* s, Sphere temp) {
+Sphere* scene_add_sphere(Scene* s, Sphere temp, Motility om) {
     Sphere* sphere = malloc(sizeof *sphere);
     memcpy(sphere, &temp, sizeof *sphere);
 
-    s->spheres = sll_insert(s->spheres, sphere);
+    if(om)
+        s->d_spheres = sll_insert(s->d_spheres, sphere);
+    else
+        s->s_spheres = sll_insert(s->s_spheres, sphere);
 
     return sphere;
 }
 
-void scene_initialize(Scene* s) {
-    assert(s->meshes || s->spheres);
-
+void helper_scene_surface_init(SLL* meshes, SLL* spheres, Surface** surfaces, size_t* sc) {
     SLL* curr;
 
-    size_t sc = 0, t = 0;
-    for(curr = s->meshes; curr; curr = curr->next) 
-        sc += ((Mesh*) curr->item)->tc;
-    for(curr = s->spheres; curr; curr = curr->next) ++sc;
+    size_t t = 0;
+    for(curr = meshes; curr; curr = curr->next) 
+        *sc += ((Mesh*) curr->item)->tc;
+    for(curr = spheres; curr; curr = curr->next) (*sc)++;
 
-    Surface* surfaces = malloc(sc * sizeof *surfaces);
-    for(curr = s->meshes; curr; curr = curr->next) {
+    *surfaces = malloc(*sc * sizeof **surfaces);
+    for(curr = meshes; curr; curr = curr->next) {
         Mesh* mesh = (Mesh*) curr->item;
 
         size_t i;
         for(i = 0; i < mesh->tc; i++) {
-            surfaces[t] = (Surface) {
+            (*surfaces)[t] = (Surface) {
                 .st = TRI,
                 .tri = &mesh->tris[i]
             }; t++;
         }
     }
 
-    for(curr = s->spheres; curr; curr = curr->next) {
-        surfaces[t] = (Surface) {
+    for(curr = spheres; curr; curr = curr->next) {
+        (*surfaces)[t] = (Surface) {
             .st = SPHERE,
             .sphere = (Sphere*) curr->item
         }; t++;
     }
+}
 
-    s->sc = sc;
-    s->surfaces = surfaces;
-    s->tt = bvh_initialize(s->sc, s->surfaces);
+void scene_initialize(Scene* s) {
+    assert(s->s_meshes || s->d_meshes || s->s_spheres || s->d_spheres);
+
+    helper_scene_surface_init(s->s_meshes, s->s_spheres, &s->s_surfaces, &s->ssc);
+    helper_scene_surface_init(s->d_meshes, s->d_spheres, &s->d_surfaces, &s->dsc);
+
+    s->tt = bvh_initialize(s->ssc, s->s_surfaces);
 }
 
 void scene_free(Scene* s) {
@@ -138,9 +159,9 @@ void scene_free(Scene* s) {
         free(temp);
     }
 
-    while(s->meshes) {
-        temp = s->meshes;
-        s->meshes = s->meshes->next;
+    while(s->s_meshes) {
+        temp = s->s_meshes;
+        s->s_meshes = s->s_meshes->next;
 
         Mesh* item = (Mesh*) temp->item;
         free(item->tris);
@@ -148,9 +169,28 @@ void scene_free(Scene* s) {
         free(temp);
     }
 
-    while(s->spheres) {
-        temp = s->spheres;
-        s->spheres = s->spheres->next;
+    while(s->d_meshes) {
+        temp = s->d_meshes;
+        s->d_meshes = s->d_meshes->next;
+
+        Mesh* item = (Mesh*) temp->item;
+        free(item->tris);
+        free(item);
+        free(temp);
+    }
+
+    while(s->s_spheres) {
+        temp = s->s_spheres;
+        s->s_spheres = s->s_spheres->next;
+
+        Sphere* item = (Sphere*) temp->item;
+        free(item);
+        free(temp);
+    }
+
+    while(s->d_spheres) {
+        temp = s->d_spheres;
+        s->d_spheres = s->d_spheres->next;
 
         Sphere* item = (Sphere*) temp->item;
         free(item);
@@ -159,14 +199,38 @@ void scene_free(Scene* s) {
 
     if(s->tt) bvh_free(s->tt);
 
-    if(s->surfaces) free(s->surfaces);
+    if(s->s_surfaces) free(s->s_surfaces);
+    if(s->d_surfaces) free(s->d_surfaces);
 }
 
 //
 // Intersection check
 
 Intersection intersection_check_excl(Scene s, Config c, Ray r, Surface e) {
-    return helper_bvh_intersection(s.tt, r, e, c.t_min, c.t_max);
+    Intersection intrs = helper_bvh_intersection(s.tt, r, e, c.t_min, c.t_max);
+
+    size_t i;
+    for(i = 0; i < s.dsc; i++) {
+        Surface sf = s.d_surfaces[i];
+
+        double t;
+        switch(sf.st) {
+            case TRI:
+                t = tri_intersection(*sf.tri, r, c.t_min, c.t_max);
+                break;
+            case SPHERE:
+                t = sphere_intersection(*sf.sphere, r, c.t_min, c.t_max);
+                break;
+            case NONE: continue;
+        }
+
+        if(t < intrs.t && !surface_match(e, sf)) {
+            intrs.s = sf;
+            intrs.t = t;
+        }
+    }
+
+    return intrs;
 }
 
 Intersection intersection_check(Scene s, Config c, Ray r) {
