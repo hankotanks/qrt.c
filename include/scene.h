@@ -63,11 +63,16 @@ Scene scene_new(Camera c) {
     };
 }
 
-void scene_add_mesh(Scene* s, Mesh* mesh, Motility om) {
-    if(om) 
+Mesh* scene_add_mesh(Scene* s, Mesh temp, Motility om) {
+    Mesh* mesh = malloc(sizeof *mesh);
+    memcpy(mesh, &temp, sizeof *mesh);
+
+    if(om)
         s->d_meshes = sll_insert(s->d_meshes, mesh);
-    else
+    else 
         s->s_meshes = sll_insert(s->s_meshes, mesh);
+
+    return mesh;
 }
 
 Light* scene_add_light(Scene* s, Light temp) {
@@ -94,7 +99,7 @@ Sphere* scene_add_sphere(Scene* s, Sphere temp, Motility om) {
 
     if(om)
         s->d_spheres = sll_insert(s->d_spheres, sphere);
-    else
+    else 
         s->s_spheres = sll_insert(s->s_spheres, sphere);
 
     return sphere;
