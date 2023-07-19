@@ -73,7 +73,8 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
 }
 
 void raytrace(Buffer b, Scene s, Config c) {
-    assert(s.tt);
+    assert(s.tt &&
+        "Error: Scene was never initialized");
 
     size_t x, y;
     for(x = 0; x < b.w; x++)
