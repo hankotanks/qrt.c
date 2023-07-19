@@ -23,6 +23,8 @@ typedef struct Config {
     double t_max;
     double fov;
     double ambience;
+    size_t block_size;
+    size_t threads;
 } Config;
 
 //
@@ -137,9 +139,9 @@ void helper_scene_surface_init(SLL* meshes, SLL* spheres, Surface** surfaces, si
 void scene_initialize(Scene* s) {
     assert(!s->tt &&
         "Error: BVH has been previously initialized");
-    assert(!s->s_surfaces && !s->d_surfaces &&
+    assert((!s->s_surfaces && !s->d_surfaces) &&
         "Error: Surface arrays have already been populated");
-    assert(s->s_meshes || s->d_meshes || s->s_spheres || s->d_spheres &&
+    assert((s->s_meshes || s->d_meshes || s->s_spheres || s->d_spheres) &&
         "Error: The provided Scene has no drawable objects");
 
     helper_scene_surface_init(s->s_meshes, s->s_spheres, &s->s_surfaces, &s->ssc);
