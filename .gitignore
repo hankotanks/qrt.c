@@ -1,9 +1,12 @@
-# Executable formats
-*.exe
-*.out
-
-# Object files
-*.o
-
 # Images
 *.ppm
+
+# Temporary subdirectories
+/bin/*
+/obj/*
+
+# Allow `.keep` files to preserve folder structure
+!/bin
+!/bin/.keep
+!/obj
+!/obj/.keep

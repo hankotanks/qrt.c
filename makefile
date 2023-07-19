@@ -1,16 +1,22 @@
 CC = gcc
-LIBS = -lm
 CFLAGS = -fopenmp -Wall -Wextra
+LIBS = -lm
 
-OBJDIR = obj
+SRC_DIR := src
+OBJ_DIR := obj
+BIN_DIR := bin
+DEP_DIR := include
 
-OBJFILES = rt.o
-OBJ = $(patsubst %,$(OBJDIR)/%,$(OBJFILES))
+EXE := $(BIN_DIR)/rt
+SRC := $(wildcard $(SRC_DIR)/*.c)
+OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
-DEPS = lalg.h geom.h in.h buffer.h intrs.h scene.h
+.PHONY: all
 
-$(OBJDIR)/%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+all: $(EXE)
 
-rt: $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+$(EXE): $(OBJ)
+	$(CC) $^ $(LIBS) -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) -I$(DEP_DIR) -c $< -o $@

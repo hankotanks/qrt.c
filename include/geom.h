@@ -37,26 +37,77 @@ void ray_print(Ray* r) {
 typedef struct Material Material;
 
 struct Material {
-    char* name;
     Vec color_ambient;
     Vec color_diffuse;
     Vec color_spec;
     double luster;
     double metallicity;
-    Material* next;
 };
+
+//
+// `Axis` declaration
+
+typedef enum Axis { X, Y, Z } Axis;
+
+//
+// `Transform` declaration
+
+typedef enum TransformType { ROTATE, SCALE, SCALE_UNIFORM, TRANSLATE } TransformType;
+
+typedef struct Transform {
+    TransformType tt;
+    Vec a;
+    double t;
+} Transform;
+
+void transform_print(Transform* t); // TODO
+
+//
+// `Transform` creation
+
+Transform transform_rotate(Axis axis, double angle) {
+    Vec temp = (Vec) {
+        .x = (double) (axis == X),
+        .y = (double) (axis == Y),
+        .z = (double) (axis == Z)
+    };
+
+    return (Transform) {
+        .tt = ROTATE,
+        .a = temp,
+        .t = angle
+    };
+}
+
+Transform transform_scale(Vec factor) {
+    return (Transform) {
+        .tt = SCALE,
+        .a = factor
+    };
+}
+
+Transform transform_scale_uniform(double factor) {
+    return (Transform) {
+        .tt = SCALE_UNIFORM,
+        .t = factor
+    };
+}
+
+Transform transform_translate(Vec offset) {
+    return (Transform) {
+        .tt = TRANSLATE,
+        .a = offset
+    };
+}
 
 //
 // `Sphere` declaration
 
-typedef struct Sphere Sphere;
-
-struct Sphere {
+typedef struct Sphere {
     Vec center;
     double radius;
     Material* material;
-    Sphere* next;
-};
+} Sphere;
 
 void sphere_print_internal(Sphere* s, char* name, size_t indent) {
     int id = 4 * (int) indent; 
@@ -106,19 +157,29 @@ double sphere_intersection(Sphere s, Ray r, double t_min, double t_max) {
     return t_max + 1.;
 }
 
+// Returns 1 if the given Transform is not supported by `Sphere`
+int sphere_transform(Sphere* s, Transform t) {
+    switch(t.tt) {
+        case SCALE_UNIFORM: s->radius *= t.t; return 0;
+        case TRANSLATE: {
+            Mat translation = translate(t.a);
+            s->center = mul_vm(s->center, translation, POINT);
+            mat_free(&translation);
+        }; return 0;
+        default: return 1;
+    }
+}
+
 //
 // `Light` declaration
 
-typedef struct Light Light;
-
-struct Light {
+typedef struct Light {
     Vec pos;
     double strength;
-    Light* next;
-};
+} Light;
 
 Light light_new(Vec pos, double strength) {
-    return (Light) { .pos = pos, .strength = strength, .next = NULL };
+    return (Light) { .pos = pos, .strength = strength };
 }
 
 void light_print_internal(Light* l, char* name, size_t indent) {
@@ -140,6 +201,18 @@ void light_print_internal(Light* l, char* name, size_t indent) {
 
 void light_print(Light* l) {
     light_print_internal(l, NULL, 0);
+}
+
+// Returns 1 if the given Transform is not supported by `Light`
+int light_transform(Light* l, Transform t) {
+    switch(t.tt) {
+        case TRANSLATE: {
+            Mat translation = translate(t.a);
+            l->pos = mul_vm(l->pos, translation, POINT);
+            mat_free(&translation);
+        }; return 0;
+        default: return 1;
+    }
 }
 
 //
@@ -179,12 +252,16 @@ typedef struct Tri {
     Material* material;
 } Tri;
 
-Tri tri_new(Vertex a, Vertex b, Vertex c, Material* material) {
-    Vec centroid = (Vec) {
+Vec helper_tri_centroid(Vertex a, Vertex b, Vertex c) {
+    return (Vec) {
         .x = (a.point.x + b.point.x + c.point.x) / 3.0,
         .y = (a.point.y + b.point.y + c.point.y) / 3.0,
         .z = (a.point.z + b.point.z + c.point.z) / 3.0
     };
+}
+
+Tri tri_new(Vertex a, Vertex b, Vertex c, Material* material) {
+    Vec centroid = helper_tri_centroid(a, b, c);
 
     return (Tri) { a, b, c, centroid, material };
 }
@@ -245,10 +322,51 @@ double tri_intersection(Tri t, Ray r, double t_min, double t_max) {
 typedef struct Mesh Mesh;
 
 struct Mesh {
-    char* name;
     size_t tc;
     Tri* tris;
-    Mesh* next;
 };
+
+//
+// `Mesh` functions
+
+// Returns 1 if the given `Transform` is not supported by `Mesh`
+// This never occurs because `Mesh` accepts all transforms
+int mesh_transform(Mesh* mesh, Transform t) {
+    Mat m;
+    switch(t.tt) {
+        case ROTATE: {
+                Mat mx, my, mz;
+                mx = rot_x(t.t * t.a.x);
+                my = rot_y(t.t * t.a.y);
+                mz = rot_z(t.t * t.a.z);
+
+                Mat temp;
+                temp = mul_mm(mx, my); mat_free(&mx);   mat_free(&my);
+                m = mul_mm(temp, mz);  mat_free(&temp); mat_free(&mz);
+        }; break;
+        case SCALE: m = scale(t.a); break;
+        case SCALE_UNIFORM: m = scale(vec_aaa(t.t)); break;
+        case TRANSLATE: m = translate(t.a); break;
+    }
+
+    size_t i;
+    for(i = 0; i < mesh->tc; i++) {
+        Tri* tri = &(mesh->tris[i]);
+
+        tri->a.point = mul_vm(tri->a.point, m, POINT);
+        tri->b.point = mul_vm(tri->b.point, m, POINT);
+        tri->c.point = mul_vm(tri->c.point, m, POINT);
+
+        tri->a.normal = mul_vm(tri->a.normal, m, VECTOR);
+        tri->b.normal = mul_vm(tri->b.normal, m, VECTOR);
+        tri->c.normal = mul_vm(tri->c.normal, m, VECTOR);
+        
+        tri->centroid = helper_tri_centroid(tri->a, tri->b, tri->c);
+    }
+
+    mat_free(&m);
+
+    return 0;
+}
 
 #endif /* GEOM_H */

@@ -189,22 +189,22 @@ double dist_vv(Vec a, Vec b) {
 //
 // Transformations
 
-Mat translate(double x, double y, double z) {
+Mat translate(Vec offset) {
     Mat init = mat_id();
 
-    init.vs[3]  = x;
-    init.vs[7]  = y;
-    init.vs[11] = z;
+    init.vs[3]  = offset.x;
+    init.vs[7]  = offset.y;
+    init.vs[11] = offset.z;
 
     return init;
 }
 
-Mat scale(double x, double y, double z) {
+Mat scale(Vec factors) {
     Mat init = (Mat) { calloc(16, sizeof *(init.vs)) };
 
-    init.vs[0]  = x;
-    init.vs[5]  = y;
-    init.vs[10] = z;
+    init.vs[0]  = factors.x;
+    init.vs[5]  = factors.y;
+    init.vs[10] = factors.z;
     init.vs[15] = 1.;
 
     return init;
