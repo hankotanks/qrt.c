@@ -16,7 +16,7 @@ OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 all: $(EXE)
 
 $(EXE): $(OBJ)
-	$(CC) $^ $(LIBS) -o $@
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -I$(DEP_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -I $(DEP_DIR) -c $< -o $@

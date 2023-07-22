@@ -1,5 +1,3 @@
-#include<string.h>
-
 #include "rt.h"
 
 #define TEAPOT "C:/Users/hank/Documents/projects/rt.c/models/uteapot"
@@ -12,7 +10,9 @@ int main(void) {
         .t_min = 0.01,
         .t_max = 1000.,
         .fov = 1.570796,
-        .ambience = 0.2
+        .ambience = 0.2,
+        .block_size = 10,
+        .threads = 8
     };
 
     Camera camera = (Camera) { 

@@ -1,6 +1,8 @@
 #ifndef RT_H
 #define RT_H
 
+#include<omp.h>
+
 #include "geom.h"
 #include "buffer.h"
 #include "in.h"
@@ -72,9 +74,10 @@ Vec cast(Scene s, Config c, size_t h, size_t w, size_t x, size_t y) {
     return clamp_v(pixel_color, 0., 1.);
 }
 
-void raytrace(Buffer b, Scene s, Config c) {
-    assert(s.tt);
+// 
+// Single-thraded `raytrace` function
 
+void helper_raytrace_standard(Buffer b, Scene s, Config c) {
     size_t x, y;
     for(x = 0; x < b.w; x++)
         for(y = 0; y < b.h; y++) {
@@ -82,6 +85,86 @@ void raytrace(Buffer b, Scene s, Config c) {
 
             buffer_set_pixel(b, x, y, color);
         }
+}
+
+//
+// `Block` declaration
+
+typedef struct Block {
+    int final;
+    size_t x_start;
+    size_t x_end;
+    size_t y_start;
+    size_t y_end;
+} Block;
+
+// Used to dispatch the next `Block` to a waiting thread
+Block next_block(size_t* index, size_t block_w, size_t block_h, size_t block_size) {
+    if(*index >= block_w * block_h)
+        return (Block) { .final = 1 };
+
+    size_t x_start = (*index) % block_w * block_size;
+
+    size_t y_start = (*index)++ / block_w * block_size;
+
+    return (Block) {
+        .x_start = x_start,
+        .x_end = x_start + block_size,
+        .y_start = y_start,
+        .y_end = y_start + block_size
+    };
+}
+
+//
+// Multi-thraded `raytrace` function and combined implementation below
+
+void helper_raytrace_omp(Buffer b, Scene s, Config c) {
+    assert((b.w % c.block_size == 0 && b.h % c.block_size == 0) &&
+        "Error: Image dimensions must be cleanly divisible by block size");
+    
+    size_t block_size = c.block_size;
+    size_t block_w = b.w / block_size;
+    size_t block_h = b.h / block_size;
+
+    omp_set_dynamic(0);
+    omp_set_num_threads(c.threads);
+
+    omp_lock_t lock;
+    omp_init_lock(&lock);
+
+    size_t i = 0;
+    #pragma omp parallel
+    {
+        omp_set_lock(&lock);
+        Block curr = next_block(&i, block_w, block_h, block_size);
+        omp_unset_lock(&lock);
+
+        size_t x, y;
+        while(!curr.final) {
+            for(x = curr.x_start; x < curr.x_end; x++) {
+                for(y = curr.y_start; y < curr.y_end; y++) {
+                    Vec color = cast(s, c, b.h, b.w, x, y);
+
+                    buffer_set_pixel(b, x, y, color);
+                }
+            }
+
+            omp_set_lock(&lock);
+            curr = next_block(&i, block_w, block_h, block_size);
+            omp_unset_lock(&lock);
+        }
+    }
+}
+
+// Combined `raytrace` function
+void raytrace(Buffer b, Scene s, Config c) {
+    assert(s.tt && "Error: Scene was not initialized");
+
+    if(c.threads == 1)
+        helper_raytrace_standard(b, s, c);
+    else 
+        helper_raytrace_omp(b, s, c);
+
 }
 
 #endif /* RT_H */

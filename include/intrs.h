@@ -3,6 +3,7 @@
 
 #include<assert.h>
 #include<float.h>
+#include<string.h>
 
 #include "geom.h"
 
