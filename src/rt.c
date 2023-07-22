@@ -1,5 +1,3 @@
-#include<string.h>
-
 #include "rt.h"
 
 #define TEAPOT "C:/Users/hank/Documents/projects/rt.c/models/uteapot"

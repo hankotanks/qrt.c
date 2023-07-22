@@ -99,19 +99,19 @@ typedef struct Block {
 } Block;
 
 // Used to dispatch the next `Block` to a waiting thread
-Block next_block(size_t* index, size_t bw, size_t bh, size_t bs) {
-    if(*index >= bw * bh)
+Block next_block(size_t* index, size_t block_w, size_t block_h, size_t block_size) {
+    if(*index >= block_w * block_h)
         return (Block) { .final = 1 };
 
-    size_t x_start = (*index) % bw * bs;
+    size_t x_start = (*index) % block_w * block_size;
 
-    size_t y_start = (*index)++ / bw * bs;
+    size_t y_start = (*index)++ / block_w * block_size;
 
     return (Block) {
         .x_start = x_start,
-        .x_end = x_start + bs,
+        .x_end = x_start + block_size,
         .y_start = y_start,
-        .y_end = y_start + bs
+        .y_end = y_start + block_size
     };
 }
 
@@ -122,8 +122,9 @@ void helper_raytrace_omp(Buffer b, Scene s, Config c) {
     assert((b.w % c.block_size == 0 && b.h % c.block_size == 0) &&
         "Error: Image dimensions must be cleanly divisible by block size");
     
-    size_t bw = (b.w / c.block_size);
-    size_t bh = (b.h / c.block_size);
+    size_t block_size = c.block_size;
+    size_t block_w = b.w / block_size;
+    size_t block_h = b.h / block_size;
 
     omp_set_dynamic(0);
     omp_set_num_threads(c.threads);
@@ -132,10 +133,10 @@ void helper_raytrace_omp(Buffer b, Scene s, Config c) {
     omp_init_lock(&lock);
 
     size_t i = 0;
-    #pragma omp parallel num_threads(c.threads)
+    #pragma omp parallel
     {
         omp_set_lock(&lock);
-        Block curr = next_block(&i, bw, bh, c.block_size);
+        Block curr = next_block(&i, block_w, block_h, block_size);
         omp_unset_lock(&lock);
 
         size_t x, y;
@@ -149,7 +150,7 @@ void helper_raytrace_omp(Buffer b, Scene s, Config c) {
             }
 
             omp_set_lock(&lock);
-            curr = next_block(&i, bw, bh, c.block_size);
+            curr = next_block(&i, block_w, block_h, block_size);
             omp_unset_lock(&lock);
         }
     }

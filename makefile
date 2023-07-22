@@ -19,4 +19,4 @@ $(EXE): $(OBJ)
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) -I $(DEP_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -I $(DEP_DIR) -c $< -o $@
