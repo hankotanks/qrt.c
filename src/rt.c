@@ -1,6 +1,12 @@
+#include "SFML/Graphics.h"
+
 #include "rt.h"
 
-#define TEAPOT "C:/Users/hank/Documents/projects/rt.c/models/uteapot"
+#define TEAPOT "C:\\Users\\hank_7hp7x6m\\Desktop\\projects\\qrt.c\\models\\uteapot"
+#define DEMO
+
+#define W 640
+#define H 360
 
 //
 // Main function
@@ -80,17 +86,53 @@ int main(void) {
     // Initialize the scene
     scene_initialize(&scene);
 
-    // Demonstrate that transforming a DYNAMIC object after initialization is allowed
-    sphere_transform(dyn_sphere, transform_translate(vec_abc(0., 1., -1.)));
-    
     // Create a new `Buffer`
-    Buffer b = buffer_wh(640, 360);
+    Buffer b = buffer_wh(W, H, RGBA);
+
+    sfVideoMode mode = { W, H, 32 };
+    sfRenderWindow* window;
+    sfTexture* tex;
+    sfSprite* sprite;
+    sfEvent event;
+
+    window = sfRenderWindow_create(mode, "rt.c", sfResize | sfClose, NULL);
+    if(!window) return 1;
+
+    tex = sfTexture_create(W, H);
+    if(!tex) return 1;
+
+    sprite = sfSprite_create();
+
+    sfSprite_setTexture(sprite, tex, sfTrue);
+    sfRenderWindow_setFramerateLimit(window, 30);
+
+    while(sfRenderWindow_isOpen(window)) {
+        while(sfRenderWindow_pollEvent(window, &event)) {
+            if(event.type == sfEvtClosed) sfRenderWindow_close(window);
+        }
+        
+        raytrace(b, scene, config);
+
+        camera_transform(&scene.camera, transform_translate(mul_vs(scene.camera.at, -1.)));
+        camera_transform(&scene.camera, transform_rotate(X, 0.08726646));
+        camera_transform(&scene.camera, transform_translate(scene.camera.at));
+        
+        sfTexture_updateFromPixels(tex, b.vs, W, H, 0, 0);
+
+        sfRenderWindow_clear(window, sfBlack);
+        sfRenderWindow_drawSprite(window, sprite, NULL);
+        sfRenderWindow_display(window);
+    }
+
+    scene_free(&scene); buffer_free(&b);
+
+    return 0;
 
     // Write the ray traced image to the `Buffer`
     raytrace(b, scene, config);
 
     // Export `Buffer` as a PPM image
-    buffer_export_as_ppm(b, "test.ppm");
+    if(buffer_export_as_ppm(b, "test.ppm")) return 1;
 
     // Free memory before exit
     scene_free(&scene); buffer_free(&b);

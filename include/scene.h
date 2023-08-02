@@ -9,12 +9,40 @@
 #include "intrs.h"
 
 //
-// `Camera declaration
+// `Camera` declaration
 
 typedef struct Camera {
     Vec pos;
     Vec at;
 } Camera;
+
+//
+// `Camera` helper
+
+int camera_transform(Camera* camera, Transform t) {
+    Mat m;
+    switch(t.tt) {
+        case ROTATE: {
+                Mat mx, my, mz;
+                mx = rot_x(t.t * t.a.x);
+                my = rot_y(t.t * t.a.y);
+                mz = rot_z(t.t * t.a.z);
+
+                Mat temp;
+                temp = mul_mm(mx, my); mat_free(&mx);   mat_free(&my);
+                m = mul_mm(temp, mz);  mat_free(&temp); mat_free(&mz);
+        }; break;
+        case TRANSLATE: m = translate(t.a); break;
+        default: return 1;
+    }
+
+    camera->pos = mul_vm(camera->pos, m, POINT);
+    camera->at  = mul_vm(camera->at, m, POINT);
+
+    mat_free(&m);
+
+    return 0;
+}
 
 //
 // `Config` declaration

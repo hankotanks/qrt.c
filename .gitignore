@@ -1,5 +1,6 @@
 # Images
 *.ppm
+*.dll
 
 # Temporary subdirectories
 /bin/*
